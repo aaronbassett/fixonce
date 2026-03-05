@@ -80,3 +80,13 @@ export {
   SubmitFeedbackInputSchema,
   DetectEnvironmentInputSchema,
 } from "./schema.js";
+
+// Config
+export {
+  getConfig,
+  resetConfig,
+  SETTINGS_DIR,
+  SETTINGS_PATH,
+  SETTINGS_TEMPLATE,
+  type FixOnceConfig,
+} from "./config.js";

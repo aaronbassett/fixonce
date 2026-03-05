@@ -16,3 +16,10 @@ coverage/
 *.tmp
 .vscode/
 .idea/
+
+# LLM artifacts and settings
+.sdd/
+discovery/
+docs/ideas/
+specs/
+.mcp.json

@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "node ./node_modules/@fixonce/hooks/dist/session-start.js"
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "node ./node_modules/@fixonce/hooks/dist/user-prompt-submit.js"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "node ./node_modules/@fixonce/hooks/dist/pre-tool-use.js",
+        "matcher": "Write|Edit"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "node ./node_modules/@fixonce/hooks/dist/post-tool-use.js",
+        "matcher": "Write|Edit"
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node ./node_modules/@fixonce/hooks/dist/stop.js"
+      }
+    ]
+  }
+}

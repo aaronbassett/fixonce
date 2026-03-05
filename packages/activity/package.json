@@ -1,0 +1,25 @@
+{
+  "name": "@fixonce/activity",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fixonce/shared": "workspace:*",
+    "@fixonce/storage": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "latest",
+    "typescript": "~5.7.0"
+  }
+}

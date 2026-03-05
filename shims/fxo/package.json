@@ -1,0 +1,12 @@
+{
+  "name": "fxo",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "CLI for FixOnce — shorthand for @fixonce/cli",
+  "bin": {
+    "fxo": "./bin.js"
+  },
+  "dependencies": {
+    "@fixonce/cli": "workspace:*"
+  }
+}

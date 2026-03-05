@@ -2,9 +2,18 @@
   "name": "@fixonce/web",
   "version": "0.1.0",
   "type": "module",
+  "main": "./dist/server/index.js",
+  "bin": {
+    "fxo-web": "./dist/server/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/server/index.js"
+    }
+  },
   "scripts": {
     "dev": "tsx server/index.ts",
-    "build": "vite build",
+    "build": "vite build && tsup server/index.ts --format esm --out-dir dist/server",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -22,6 +31,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "tsup": "latest",
     "tsx": "latest",
     "typescript": "~5.7.0",
     "vite": "^6.0.0"

@@ -129,6 +129,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: ^4.3.0
         version: 4.7.0(vite@6.4.1(@types/node@25.3.3)(tsx@4.21.0))
+      tsup:
+        specifier: latest
+        version: 8.5.1(postcss@8.5.8)(tsx@4.21.0)(typescript@5.7.3)
       tsx:
         specifier: latest
         version: 4.21.0
@@ -211,6 +214,24 @@ importers:
       typescript:
         specifier: ~5.7.0
         version: 5.7.3
+
+  shims/fxo:
+    dependencies:
+      '@fixonce/cli':
+        specifier: workspace:*
+        version: link:../../apps/cli
+
+  shims/fxo-mcp:
+    dependencies:
+      '@fixonce/mcp-server':
+        specifier: workspace:*
+        version: link:../../apps/mcp-server
+
+  shims/fxo-web:
+    dependencies:
+      '@fixonce/web':
+        specifier: workspace:*
+        version: link:../../apps/web
 
 packages:
 

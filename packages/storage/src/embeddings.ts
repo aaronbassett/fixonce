@@ -1,19 +1,13 @@
 import { VoyageAIClient } from "voyageai";
+import { getConfig } from "@fixonce/shared";
 
 let voyageClient: VoyageAIClient | null = null;
 
 function getVoyageClient(): VoyageAIClient {
   if (voyageClient) return voyageClient;
 
-  const apiKey = process.env.VOYAGE_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "VOYAGE_API_KEY is not set. Add it to your .env file. " +
-        "Get it from https://dash.voyageai.com/",
-    );
-  }
-
-  voyageClient = new VoyageAIClient({ apiKey });
+  const { voyageApiKey } = getConfig();
+  voyageClient = new VoyageAIClient({ apiKey: voyageApiKey });
   return voyageClient;
 }
 

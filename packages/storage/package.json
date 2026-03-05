@@ -1,0 +1,26 @@
+{
+  "name": "@fixonce/storage",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fixonce/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.49.0",
+    "voyageai": "latest"
+  },
+  "devDependencies": {
+    "tsup": "latest",
+    "typescript": "~5.7.0"
+  }
+}

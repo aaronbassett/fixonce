@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getConfig } from "@fixonce/shared";
 
 export interface LLMConfig {
   model: string;
@@ -19,17 +20,10 @@ let openrouterClient: OpenAI | null = null;
 function getClient(): OpenAI {
   if (openrouterClient) return openrouterClient;
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "OPENROUTER_API_KEY is not set. Add it to your .env file. " +
-      "Get it from https://openrouter.ai/keys"
-    );
-  }
-
+  const { openrouterApiKey } = getConfig();
   openrouterClient = new OpenAI({
     baseURL: "https://openrouter.ai/api/v1",
-    apiKey,
+    apiKey: openrouterApiKey,
     defaultHeaders: {
       "X-Title": "fixonce",
     },

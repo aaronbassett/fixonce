@@ -1,4 +1,14 @@
-type ActivityListener = (event: { id: string; operation: string; memory_id: string | null; details: Record<string, unknown>; created_at: string }) => void;
+import type { OperationType } from "@fixonce/shared";
+
+export interface ActivityEvent {
+  id: string;
+  operation: OperationType;
+  memory_id: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
+type ActivityListener = (event: ActivityEvent) => void;
 
 const listeners = new Set<ActivityListener>();
 
@@ -7,7 +17,7 @@ export function subscribeToActivity(listener: ActivityListener): () => void {
   return () => listeners.delete(listener);
 }
 
-export function emitActivity(event: { id: string; operation: string; memory_id: string | null; details: Record<string, unknown>; created_at: string }): void {
+export function emitActivity(event: ActivityEvent): void {
   for (const listener of listeners) {
     try {
       listener(event);

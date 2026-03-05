@@ -52,16 +52,16 @@ export async function detectDuplicates(
       match_count: 5,
       language,
     });
-  } catch {
-    // If embedding fails, fall back to FTS
+  } catch (embeddingErr) {
+    console.error("Hybrid search failed during dedup, falling back to FTS:", embeddingErr);
     try {
       candidates = await ftsSearch({
         query_text: `${title} ${summary}`,
         match_count: 5,
         language,
       });
-    } catch {
-      // If both fail, treat as new
+    } catch (ftsErr) {
+      console.error("Both hybrid and FTS search failed during dedup:", ftsErr);
       return { outcome: "new", reason: "Could not search for duplicates" };
     }
   }
@@ -76,5 +76,13 @@ export async function detectDuplicates(
 
   const userMessage = `NEW MEMORY:\nTitle: ${title}\nSummary: ${summary}\nContent: ${content}\n\nEXISTING MEMORIES:\n${existingStr}`;
 
-  return llmCallJSON<DedupResult>("duplicate_detection", SYSTEM_PROMPT, userMessage);
+  const VALID_OUTCOMES = new Set<string>(["new", "discard", "replace", "update", "merge"]);
+  const result = await llmCallJSON<DedupResult>("duplicate_detection", SYSTEM_PROMPT, userMessage);
+
+  if (!VALID_OUTCOMES.has(result.outcome)) {
+    console.error(`LLM returned unrecognised dedup outcome: ${String(result.outcome)}`);
+    return { outcome: "new", reason: "LLM returned unrecognised outcome; treating as new" };
+  }
+
+  return result;
 }

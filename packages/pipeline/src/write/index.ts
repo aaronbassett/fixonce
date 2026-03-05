@@ -6,7 +6,7 @@ import { detectDuplicates } from "./duplicate-detection.js";
 
 async function triggerAsyncEmbedding(memoryId: string, content: string): Promise<void> {
   // Fire-and-forget embedding generation
-  generateEmbedding(`${content}`, "document")
+  generateEmbedding(content, "document")
     .then(async (embedding) => {
       await updateMemory(memoryId, { embedding });
     })
@@ -99,6 +99,7 @@ export async function executeWritePipeline(input: CreateMemoryInput): Promise<Cr
         throw new Error("Replace outcome requires target_memory_id");
       }
       const existing = await getMemoryById(dedupResult.target_memory_id);
+      if (!existing) throw new Error("Target memory not found for replace");
       const updated = await updateMemory(dedupResult.target_memory_id, {
         title: input.title,
         content: input.content,
@@ -110,7 +111,7 @@ export async function executeWritePipeline(input: CreateMemoryInput): Promise<Cr
 
       return {
         status: "replaced",
-        memory: { id: updated.id, title: updated.title, created_at: existing?.created_at ?? updated.updated_at },
+        memory: { id: updated.id, title: updated.title, created_at: existing.created_at },
         dedup_outcome: "replace",
         affected_memory_ids: [dedupResult.target_memory_id],
       };
@@ -174,6 +175,11 @@ export async function executeWritePipeline(input: CreateMemoryInput): Promise<Cr
         dedup_outcome: "merge",
         affected_memory_ids: [dedupResult.target_memory_id],
       };
+    }
+
+    default: {
+      const _exhaustive: never = dedupResult.outcome;
+      throw new Error(`Unhandled dedup outcome: ${String(_exhaustive)}`);
     }
   }
 }

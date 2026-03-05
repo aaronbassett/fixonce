@@ -45,6 +45,14 @@ export async function evaluateQuality(
     };
   }
 
+  const summaryCredCheck = checkForCredentials(summary);
+  if (summaryCredCheck.found) {
+    return {
+      decision: "reject",
+      reason: "Memory summary contains potential credentials or secrets",
+    };
+  }
+
   const userMessage = `Title: ${title}\nSummary: ${summary}\n\nContent:\n${content}`;
 
   return llmCallJSON<QualityGateResult>("quality_gate", SYSTEM_PROMPT, userMessage);

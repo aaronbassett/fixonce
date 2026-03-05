@@ -47,7 +47,84 @@ packages/
 
 ## Getting Started
 
-### 1. Clone and install
+### Getting Started (AI)
+
+If you're using an AI coding agent (like Claude Code), you can have it run through the entire setup for you. This works best if you have the [Supabase MCP server](https://github.com/supabase-community/supabase-mcp) configured, which allows the agent to create and configure your database automatically. Without it, the agent will fall back to the manual instructions for database setup.
+
+Copy the prompt below and paste it into your agent to get started.
+
+<details>
+<summary>Setup prompt (click to expand)</summary>
+
+```text
+I need you to set up the FixOnce project. Walk me through each step and confirm before moving on.
+
+## Step 1: Project setup
+
+Check if we're already in the fixonce project directory (look for a pnpm-workspace.yaml and an apps/ directory). If we are, skip cloning. If not, ask me if I'd like you to clone it from https://github.com/aaronbassett/fixonce.git — and if so, clone it and cd into the project root.
+
+Run `pnpm install` to install dependencies.
+
+## Step 2: Environment file
+
+Run `cp .env.example .env` to create the environment file.
+
+## Step 3: Database setup
+
+Check if you have access to the Supabase MCP server (look for Supabase-related MCP tools).
+
+**If you DO have the Supabase MCP:**
+- Ask me: "Would you like me to create a new Supabase project for FixOnce, or use an existing one?"
+- If new: create a new project called "fixonce" (or whatever name I give you)
+- If existing: ask me which project to use
+- Once you have the project, get the project URL and anon key
+- Update the `.env` file to set `SUPABASE_URL` and `SUPABASE_ANON_KEY` with the real values
+- Run all 9 SQL migration files from `packages/storage/migrations/` in order (001 through 009) against the database using the MCP tools
+
+**If you do NOT have the Supabase MCP:**
+- Tell me: "I don't have access to the Supabase MCP server. You'll need to follow the manual 'Getting Started' instructions in the README to set up your database. Create a Supabase project at https://supabase.com, run the 9 SQL migrations in packages/storage/migrations/ via the SQL editor, and update .env with your SUPABASE_URL and SUPABASE_ANON_KEY."
+- Wait for me to confirm that the database is set up and .env is updated before continuing.
+
+## Step 4: API keys
+
+Tell me: "You need two more API keys. I'm opening the pages where you can get them. Create or copy a key from each, paste them into your .env file, and let me know when you're done."
+
+Then open these URLs in my browser:
+- https://dashboard.voyageai.com/organization/api-keys
+- https://openrouter.ai/settings/keys
+
+Remind me that the keys go in `.env` as:
+- `VOYAGE_API_KEY` — from Voyage AI
+- `OPENROUTER_API_KEY` — from OpenRouter
+
+Wait for me to confirm before continuing.
+
+## Step 5: Build and verify
+
+Run `pnpm build` and then `pnpm typecheck`. Report any errors. If everything passes, say so and move on.
+
+## Step 6: Seed example memories
+
+Ask me: "Would you like me to add a few example memories so you can see FixOnce in action?"
+
+If yes, use the CLI to create 3 example memories by piping JSON to `pnpm --filter fixonce dev create`. Create memories that would be useful for a Midnight Network developer, for example:
+
+1. A "gotcha" about Compact contract syntax
+2. A "pattern" about using the Midnight JS SDK
+3. A "correction" about a common mistake
+
+## Step 7: Launch the Web UI
+
+Start the web UI with `pnpm --filter @fixonce/web dev` and open my browser to http://localhost:5173 (or whatever port Vite reports).
+
+Tell me: "FixOnce is running! You can browse your memories in the web UI. Check the README for instructions on setting up the MCP server and Claude Code hooks for full integration."
+```
+
+</details>
+
+### Getting Started (Manual)
+
+#### 1. Clone and install
 
 ```bash
 git clone https://github.com/aaronbassett/fixonce.git
@@ -55,7 +132,7 @@ cd fixonce
 pnpm install
 ```
 
-### 2. Set up environment variables
+#### 2. Set up environment variables
 
 ```bash
 cp .env.example .env
@@ -70,7 +147,7 @@ VOYAGE_API_KEY=your-voyage-api-key
 OPENROUTER_API_KEY=your-openrouter-api-key
 ```
 
-### 3. Set up the database
+#### 3. Set up the database
 
 Run the SQL migrations in order against your Supabase project. You can paste them into the Supabase SQL editor or use the CLI:
 
@@ -86,13 +163,13 @@ The migrations create:
 - HNSW index for vector similarity
 - Hybrid search RPC function (Reciprocal Rank Fusion)
 
-### 4. Build
+#### 4. Build
 
 ```bash
 pnpm build
 ```
 
-### 5. Verify
+#### 5. Verify
 
 ```bash
 pnpm typecheck

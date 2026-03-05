@@ -1,0 +1,12 @@
+{
+  "name": "fxo-web",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Web UI for FixOnce — shorthand for @fixonce/web",
+  "bin": {
+    "fxo-web": "./bin.js"
+  },
+  "dependencies": {
+    "@fixonce/web": "workspace:*"
+  }
+}

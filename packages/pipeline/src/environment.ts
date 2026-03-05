@@ -43,6 +43,16 @@ async function readTextFile(filePath: string): Promise<string | null> {
   }
 }
 
+function toDependencyRecord(value: unknown): Record<string, string> | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const obj = value as Record<string, unknown>;
+  const result: Record<string, string> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (typeof v === "string") result[k] = v;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 function scanDependencies(
   deps: Record<string, string> | undefined,
   detected: DetectedVersions,
@@ -80,13 +90,13 @@ export async function detectEnvironment(
 
   if (packageJson) {
     scanDependencies(
-      packageJson.dependencies as Record<string, string> | undefined,
+      toDependencyRecord(packageJson.dependencies),
       detected,
       scanSources,
       "package.json",
     );
     scanDependencies(
-      packageJson.devDependencies as Record<string, string> | undefined,
+      toDependencyRecord(packageJson.devDependencies),
       detected,
       scanSources,
       "package.json",

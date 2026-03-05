@@ -1,3 +1,5 @@
+import { randomBytes } from "node:crypto";
+
 const DEFAULT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 
 interface CacheEntry {
@@ -8,18 +10,12 @@ interface CacheEntry {
 const cache = new Map<string, CacheEntry>();
 
 /**
- * Generate a deterministic-but-unique cache key for a memory ID.
- * Returns a string in the format "ck_<6chars>".
+ * Generate a unique cache key for a memory ID using cryptographic randomness.
+ * Returns a string in the format "ck_<12chars>".
  */
 export function generateCacheKey(memoryId: string): string {
-  const source = `${memoryId}:${Date.now()}`;
-  let hash = 0;
-  for (let i = 0; i < source.length; i++) {
-    const char = source.charCodeAt(i);
-    hash = ((hash << 5) - hash + char) | 0;
-  }
-  const hashStr = Math.abs(hash).toString(36).padStart(6, "0").slice(0, 6);
-  const key = `ck_${hashStr}`;
+  const token = randomBytes(9).toString("base64url");
+  const key = `ck_${token}`;
 
   cache.set(key, {
     memoryId,

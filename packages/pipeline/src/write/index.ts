@@ -1,4 +1,5 @@
 import type { CreateMemoryInput, CreateMemoryResult, Memory } from "@fixonce/shared";
+import { duplicateDetectionError, storageError } from "@fixonce/shared";
 import { createMemory as storeMemory, updateMemory, getMemoryById } from "@fixonce/storage";
 import { generateEmbedding } from "@fixonce/storage";
 import { evaluateQuality } from "./quality-gate.js";
@@ -96,10 +97,10 @@ export async function executeWritePipeline(input: CreateMemoryInput): Promise<Cr
 
     case "replace": {
       if (!dedupResult.target_memory_id) {
-        throw new Error("Replace outcome requires target_memory_id");
+        throw duplicateDetectionError("Replace outcome requires target_memory_id", "This indicates a malformed LLM dedup response. Retry the operation.");
       }
       const existing = await getMemoryById(dedupResult.target_memory_id);
-      if (!existing) throw new Error("Target memory not found for replace");
+      if (!existing) throw storageError(`Target memory ${dedupResult.target_memory_id} not found for replace`, "The target memory may have been deleted. Retry to re-evaluate.");
       const updated = await updateMemory(dedupResult.target_memory_id, {
         title: input.title,
         content: input.content,
@@ -119,10 +120,10 @@ export async function executeWritePipeline(input: CreateMemoryInput): Promise<Cr
 
     case "update": {
       if (!dedupResult.target_memory_id) {
-        throw new Error("Update outcome requires target_memory_id");
+        throw duplicateDetectionError("Update outcome requires target_memory_id", "This indicates a malformed LLM dedup response. Retry the operation.");
       }
       const existing = await getMemoryById(dedupResult.target_memory_id);
-      if (!existing) throw new Error("Target memory not found for update");
+      if (!existing) throw storageError(`Target memory ${dedupResult.target_memory_id} not found for update`, "The target memory may have been deleted. Retry to re-evaluate.");
 
       const updatedContent = `${existing.content}\n\n---\n\n${input.content}`;
       const updated = await updateMemory(dedupResult.target_memory_id, {
@@ -143,7 +144,7 @@ export async function executeWritePipeline(input: CreateMemoryInput): Promise<Cr
 
     case "merge": {
       if (!dedupResult.target_memory_id) {
-        throw new Error("Merge outcome requires target_memory_id");
+        throw duplicateDetectionError("Merge outcome requires target_memory_id", "This indicates a malformed LLM dedup response. Retry the operation.");
       }
 
       // Disable original memory

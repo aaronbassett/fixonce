@@ -1,0 +1,12 @@
+{
+  "name": "fxo-mcp",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MCP server for FixOnce — shorthand for @fixonce/mcp-server",
+  "bin": {
+    "fxo-mcp": "./bin.js"
+  },
+  "dependencies": {
+    "@fixonce/mcp-server": "workspace:*"
+  }
+}

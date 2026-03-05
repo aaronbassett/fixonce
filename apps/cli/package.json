@@ -1,9 +1,9 @@
 {
-  "name": "fixonce",
+  "name": "@fixonce/cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "fixonce": "./dist/index.js"
+    "fxo": "./dist/index.js"
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",

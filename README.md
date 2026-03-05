@@ -17,7 +17,7 @@ FixOnce stores memories (corrections, patterns, gotchas) in a Supabase-backed da
 - **Read pipeline** — query rewriting, hybrid/vector/FTS search, LLM reranking, verbosity projections
 - **Version-aware** — filter memories by component version predicates (e.g., "compact_compiler >= 0.14.0")
 - **MCP server** — 7 tools for direct Claude Code integration
-- **CLI** — 9 commands for terminal-based memory management
+- **CLI** — 10 commands for terminal-based memory management
 - **Web UI** — React dashboard for browsing, creating, and managing memories
 - **Claude Code hooks** — automatic memory surfacing during coding sessions
 
@@ -26,7 +26,7 @@ FixOnce stores memories (corrections, patterns, gotchas) in a Supabase-backed da
 ```
 apps/
   mcp-server/     MCP server (7 tools, stdio transport)
-  cli/            CLI (commander, 9 commands)
+  cli/            CLI (commander, 10 commands)
   web/            Web UI (React 19, Vite, Express 5, SSE)
   hooks/          Claude Code hooks (5 lifecycle hooks)
 
@@ -73,23 +73,48 @@ npm install -g @fixonce/mcp-server
 npm install -g @fixonce/web
 ```
 
-## Environment Variables
+## Configuration
 
-FixOnce requires four environment variables. Export them in your shell or add them to your shell profile (e.g. `~/.zshrc`, `~/.bashrc`):
+FixOnce requires four settings. You can configure them via a settings file or environment variables.
+
+### Settings file (recommended)
+
+Run the config command to create and edit your settings file:
 
 ```bash
-export SUPABASE_URL=https://your-project.supabase.co
-export SUPABASE_ANON_KEY=your-anon-key
-export VOYAGE_API_KEY=your-voyage-api-key
-export OPENROUTER_API_KEY=your-openrouter-api-key
+npx fixonce config
 ```
 
-| Variable | Description | Where to get it |
-|----------|-------------|-----------------|
-| `SUPABASE_URL` | Your Supabase project URL | [Supabase dashboard](https://supabase.com/dashboard) → Project Settings → API |
-| `SUPABASE_ANON_KEY` | Your Supabase anonymous key | Same page as above |
-| `VOYAGE_API_KEY` | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys) |
-| `OPENROUTER_API_KEY` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys) |
+This creates `~/.config/fixonce/settings.json` and opens it in your `$EDITOR`. Fill in your API keys:
+
+```json
+{
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseAnonKey": "your-anon-key",
+  "voyageApiKey": "your-voyage-api-key",
+  "openrouterApiKey": "your-openrouter-api-key"
+}
+```
+
+### Environment variables
+
+Alternatively, export environment variables in your shell or shell profile (e.g. `~/.zshrc`, `~/.bashrc`):
+
+```bash
+export FIXONCE_SUPABASE_URL=https://your-project.supabase.co
+export FIXONCE_SUPABASE_ANON_KEY=your-anon-key
+export FIXONCE_VOYAGE_API_KEY=your-voyage-api-key
+export FIXONCE_OPENROUTER_API_KEY=your-openrouter-api-key
+```
+
+Environment variables take priority over the settings file, so you can use them for per-project overrides.
+
+| Variable | Settings key | Description | Where to get it |
+|----------|-------------|-------------|-----------------|
+| `FIXONCE_SUPABASE_URL` | `supabaseUrl` | Your Supabase project URL | [Supabase dashboard](https://supabase.com/dashboard) → Project Settings → API |
+| `FIXONCE_SUPABASE_ANON_KEY` | `supabaseAnonKey` | Your Supabase anonymous key | Same page as above |
+| `FIXONCE_VOYAGE_API_KEY` | `voyageApiKey` | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys) |
+| `FIXONCE_OPENROUTER_API_KEY` | `openrouterApiKey` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys) |
 
 When configuring the MCP server, you can also pass these directly via the `env` block in your settings (see [MCP Server](#mcp-server-recommended-for-claude-code) below).
 
@@ -128,10 +153,10 @@ Or add it to your Claude Code MCP settings (`~/.claude/settings.json` or `.claud
       "command": "npx",
       "args": ["fixonce-mcp"],
       "env": {
-        "SUPABASE_URL": "https://your-project.supabase.co",
-        "SUPABASE_ANON_KEY": "your-anon-key",
-        "VOYAGE_API_KEY": "your-voyage-api-key",
-        "OPENROUTER_API_KEY": "your-openrouter-api-key"
+        "FIXONCE_SUPABASE_URL": "https://your-project.supabase.co",
+        "FIXONCE_SUPABASE_ANON_KEY": "your-anon-key",
+        "FIXONCE_VOYAGE_API_KEY": "your-voyage-api-key",
+        "FIXONCE_OPENROUTER_API_KEY": "your-openrouter-api-key"
       }
     }
   }
@@ -164,6 +189,9 @@ npx fixonce detect
 
 # Get a specific memory
 npx fixonce get <memory-id>
+
+# Configure API keys
+npx fixonce config
 
 # All commands support --json for machine-readable output
 npx fixonce query --json "compact compiler errors"
@@ -216,7 +244,7 @@ pnpm build
 | `@fixonce/storage` | | Supabase client, CRUD operations, hybrid search, Voyage AI embeddings |
 | `@fixonce/pipeline` | | Write pipeline (quality gate, dedup), read pipeline (rewrite, search, rerank) |
 | `@fixonce/activity` | | Cross-cutting activity logging with SSE pub-sub |
-| `@fixonce/cli` | `fixonce` | 9 commands for terminal-based management |
+| `@fixonce/cli` | `fixonce` | 10 commands for terminal-based management |
 | `@fixonce/mcp-server` | `fixonce-mcp` | MCP server with 7 tools for Claude Code |
 | `@fixonce/web` | `fixonce-web` | React 19 + Vite frontend, Express 5 backend |
 | `@fixonce/hooks` | | 5 Claude Code lifecycle hooks |

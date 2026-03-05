@@ -9,6 +9,7 @@ import { registerFeedbackCommand } from "./commands/feedback.js";
 import { registerDetectCommand } from "./commands/detect.js";
 import { registerServeCommand } from "./commands/serve.js";
 import { registerWebCommand } from "./commands/web.js";
+import { registerConfigCommand } from "./commands/config.js";
 
 const program = new Command()
   .name("fixonce")
@@ -25,5 +26,6 @@ registerFeedbackCommand(program);
 registerDetectCommand(program);
 registerServeCommand(program);
 registerWebCommand(program);
+registerConfigCommand(program);
 
 program.parse();

@@ -75,7 +75,14 @@ npm install -g @fixonce/web
 
 ## Environment Variables
 
-FixOnce requires four environment variables. Set them in your shell profile, a `.env` file, or pass them directly when running commands.
+FixOnce requires four environment variables. Export them in your shell or add them to your shell profile (e.g. `~/.zshrc`, `~/.bashrc`):
+
+```bash
+export SUPABASE_URL=https://your-project.supabase.co
+export SUPABASE_ANON_KEY=your-anon-key
+export VOYAGE_API_KEY=your-voyage-api-key
+export OPENROUTER_API_KEY=your-openrouter-api-key
+```
 
 | Variable | Description | Where to get it |
 |----------|-------------|-----------------|
@@ -84,14 +91,7 @@ FixOnce requires four environment variables. Set them in your shell profile, a `
 | `VOYAGE_API_KEY` | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys) |
 | `OPENROUTER_API_KEY` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys) |
 
-Example `.env` file:
-
-```
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your-anon-key
-VOYAGE_API_KEY=your-voyage-api-key
-OPENROUTER_API_KEY=your-openrouter-api-key
-```
+When configuring the MCP server, you can also pass these directly via the `env` block in your settings (see [MCP Server](#mcp-server-recommended-for-claude-code) below).
 
 ## Database Setup
 

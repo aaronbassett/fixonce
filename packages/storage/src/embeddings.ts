@@ -29,7 +29,11 @@ export async function generateEmbedding(
     outputDimension: 1024,
   });
 
-  return result.data![0]!.embedding!;
+  const embedding = result.data?.[0]?.embedding;
+  if (!embedding) {
+    throw new Error("VoyageAI returned no embedding for input text");
+  }
+  return embedding;
 }
 
 export async function generateEmbeddings(
@@ -46,7 +50,15 @@ export async function generateEmbeddings(
     outputDimension: 1024,
   });
 
-  return result.data!.map((d) => d.embedding!);
+  if (!result.data) {
+    throw new Error("VoyageAI returned no data for batch embedding request");
+  }
+  return result.data.map((d, i) => {
+    if (!d.embedding) {
+      throw new Error(`VoyageAI returned no embedding for input at index ${i}`);
+    }
+    return d.embedding;
+  });
 }
 
 export function resetVoyageClient(): void {

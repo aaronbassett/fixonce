@@ -74,17 +74,7 @@ export async function vectorSearch(
     match_count: options.match_count ?? 20,
   });
 
-  if (error) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from("memory")
-      .select()
-      .eq("enabled", true)
-      .not("embedding", "is", null)
-      .limit(options.match_count ?? 20);
-
-    if (fallbackError) throw fallbackError;
-    return (fallbackData ?? []) as Memory[];
-  }
+  if (error) throw error;
 
   let results = (data ?? []) as Memory[];
   if (options.language)

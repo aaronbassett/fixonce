@@ -1,37 +1,15 @@
 import type { DetectedVersions } from "@fixonce/shared";
 
 /**
- * Build a Supabase filter string for version predicate matching.
+ * Apply version filtering to a list of memories.
+ * Used as a post-filter because the Supabase JS client cannot express
+ * the full JSONB predicate for OR-within/AND-across version matching.
  *
  * Rules:
+ * - null version_predicates = matches all environments
+ * - Missing key for a component = no constraint on that component
  * - OR within a component (any listed version matches)
  * - AND across components (all constrained components must match)
- * - Missing key = no constraint on that component
- * - null version_predicates = matches all environments
- *
- * Returns filter conditions to apply to a Supabase query.
- * Since Supabase JS client has limited JSONB support, we build
- * raw filter strings for use with .or() / .filter().
- */
-export function buildVersionFilter(versions: DetectedVersions): string {
-  const components = Object.entries(versions);
-  if (components.length === 0) return "";
-
-  const conditions = components.map(([key, value]) => {
-    return (
-      `version_predicates.is.null,` +
-      `not.version_predicates.cd.{"${key}"},` +
-      `version_predicates->${key}.cs.["${value}"]`
-    );
-  });
-
-  return conditions.join(",");
-}
-
-/**
- * Apply version filtering to a list of memories.
- * Used as a post-filter when Supabase query builder cannot express
- * the full JSONB predicate.
  */
 export function filterByVersionPredicates<
   T extends { version_predicates: Record<string, string[]> | null },

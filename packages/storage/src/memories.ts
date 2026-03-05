@@ -120,19 +120,21 @@ export async function incrementSurfacedCount(ids: string[]): Promise<void> {
       memory_id: id,
     });
     if (error) {
-      const { data } = await supabase
+      const { data, error: selectError } = await supabase
         .from("memory")
         .select("surfaced_count")
         .eq("id", id)
         .single();
+      if (selectError) throw selectError;
       if (data) {
-        await supabase
+        const { error: updateError } = await supabase
           .from("memory")
           .update({
             surfaced_count: (data.surfaced_count ?? 0) + 1,
             last_surfaced_at: new Date().toISOString(),
           })
           .eq("id", id);
+        if (updateError) throw updateError;
       }
     }
   }

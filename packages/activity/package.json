@@ -1,5 +1,5 @@
 {
-  "name": "@fixonce/storage",
+  "name": "@fixonce/activity",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -16,11 +16,9 @@
   },
   "dependencies": {
     "@fixonce/shared": "workspace:*",
-    "@supabase/supabase-js": "^2.49.0",
-    "voyageai": "latest"
+    "@fixonce/storage": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.3.3",
     "tsup": "latest",
     "typescript": "~5.7.0"
   }

@@ -13,10 +13,7 @@ export {
   listFlaggedFeedback,
 } from "./feedback.js";
 export { appendActivity, listActivity } from "./activity.js";
-export {
-  buildVersionFilter,
-  filterByVersionPredicates,
-} from "./version-filter.js";
+export { filterByVersionPredicates } from "./version-filter.js";
 export {
   hybridSearch,
   ftsSearch,

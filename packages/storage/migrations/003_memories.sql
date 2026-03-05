@@ -1,0 +1,23 @@
+CREATE TABLE memory (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL CHECK (char_length(title) <= 500),
+  content text NOT NULL CHECK (octet_length(content) <= 51200),
+  summary text NOT NULL CHECK (char_length(summary) <= 1000),
+  memory_type memory_type NOT NULL,
+  source_type source_type NOT NULL,
+  created_by created_by NOT NULL,
+  source_url text,
+  tags text[] DEFAULT '{}' CHECK (array_length(tags, 1) IS NULL OR array_length(tags, 1) <= 20),
+  language text NOT NULL,
+  version_predicates jsonb,
+  project_name text,
+  project_repo_url text,
+  project_workspace_path text,
+  confidence float NOT NULL DEFAULT 0.5 CHECK (confidence >= 0.0 AND confidence <= 1.0),
+  surfaced_count integer NOT NULL DEFAULT 0 CHECK (surfaced_count >= 0),
+  last_surfaced_at timestamptz,
+  enabled boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  embedding vector(1024)
+);

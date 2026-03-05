@@ -39,106 +39,52 @@ packages/
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) v20+
-- [pnpm](https://pnpm.io/) v9+
 - A [Supabase](https://supabase.com/) project (for database + pgvector)
 - A [Voyage AI](https://www.voyageai.com/) API key (for embeddings)
 - An [OpenRouter](https://openrouter.ai/) API key (for LLM calls)
 
-## Getting Started
+## Installation
 
-### Getting Started (AI)
-
-If you're using an AI coding agent (like Claude Code), you can have it run through the entire setup for you. This works best if you have the [Supabase MCP server](https://github.com/supabase-community/supabase-mcp) configured, which allows the agent to create and configure your database automatically. Without it, the agent will fall back to the manual instructions for database setup.
-
-Copy the prompt below and paste it into your agent to get started.
-
-<details>
-<summary>Setup prompt (click to expand)</summary>
-
-```text
-I need you to set up the FixOnce project. Walk me through each step and confirm before moving on.
-
-## Step 1: Project setup
-
-Check if we're already in the fixonce project directory (look for a pnpm-workspace.yaml and an apps/ directory). If we are, skip cloning. If not, ask me if I'd like you to clone it from https://github.com/aaronbassett/fixonce.git — and if so, clone it and cd into the project root.
-
-Run `pnpm install` to install dependencies.
-
-## Step 2: Environment file
-
-Run `cp .env.example .env` to create the environment file.
-
-## Step 3: Database setup
-
-Check if you have access to the Supabase MCP server (look for Supabase-related MCP tools).
-
-**If you DO have the Supabase MCP:**
-- Ask me: "Would you like me to create a new Supabase project for FixOnce, or use an existing one?"
-- If new: create a new project called "fixonce" (or whatever name I give you)
-- If existing: ask me which project to use
-- Once you have the project, get the project URL and anon key
-- Update the `.env` file to set `SUPABASE_URL` and `SUPABASE_ANON_KEY` with the real values
-- Run all 9 SQL migration files from `packages/storage/migrations/` in order (001 through 009) against the database using the MCP tools
-
-**If you do NOT have the Supabase MCP:**
-- Tell me: "I don't have access to the Supabase MCP server. You'll need to follow the manual 'Getting Started' instructions in the README to set up your database. Create a Supabase project at https://supabase.com, run the 9 SQL migrations in packages/storage/migrations/ via the SQL editor, and update .env with your SUPABASE_URL and SUPABASE_ANON_KEY."
-- Wait for me to confirm that the database is set up and .env is updated before continuing.
-
-## Step 4: API keys
-
-Tell me: "You need two more API keys. I'm opening the pages where you can get them. Create or copy a key from each, paste them into your .env file, and let me know when you're done."
-
-Then open these URLs in my browser:
-- https://dashboard.voyageai.com/organization/api-keys
-- https://openrouter.ai/settings/keys
-
-Remind me that the keys go in `.env` as:
-- `VOYAGE_API_KEY` — from Voyage AI
-- `OPENROUTER_API_KEY` — from OpenRouter
-
-Wait for me to confirm before continuing.
-
-## Step 5: Build and verify
-
-Run `pnpm build` and then `pnpm typecheck`. Report any errors. If everything passes, say so and move on.
-
-## Step 6: Seed example memories
-
-Ask me: "Would you like me to add a few example memories so you can see FixOnce in action?"
-
-If yes, use the CLI to create 3 example memories by piping JSON to `pnpm --filter fixonce dev create`. Create memories that would be useful for a Midnight Network developer, for example:
-
-1. A "gotcha" about Compact contract syntax
-2. A "pattern" about using the Midnight JS SDK
-3. A "correction" about a common mistake
-
-## Step 7: Launch the Web UI
-
-Start the web UI with `pnpm --filter @fixonce/web dev` and open my browser to http://localhost:5173 (or whatever port Vite reports).
-
-Tell me: "FixOnce is running! You can browse your memories in the web UI. Check the README for instructions on setting up the MCP server and Claude Code hooks for full integration."
-```
-
-</details>
-
-### Getting Started (Manual)
-
-#### 1. Clone and install
+Install globally from npm:
 
 ```bash
-git clone https://github.com/aaronbassett/fixonce.git
-cd fixonce
-pnpm install
+npm install -g fixonce
 ```
 
-#### 2. Set up environment variables
+Or run directly with npx:
 
 ```bash
-cp .env.example .env
+npx fixonce
 ```
 
-Edit `.env` with your credentials:
+Individual components are also available:
+
+```bash
+npx fixonce         # CLI
+npx fixonce-mcp     # MCP server
+npx fixonce-web     # Web UI
+```
+
+All packages are published under the `@fixonce` scope. The commands above are shorthand wrappers — you can also install the scoped packages directly:
+
+```bash
+npm install -g @fixonce/cli
+npm install -g @fixonce/mcp-server
+npm install -g @fixonce/web
+```
+
+## Environment Variables
+
+FixOnce requires four environment variables. Set them in your shell profile, a `.env` file, or pass them directly when running commands.
+
+| Variable | Description | Where to get it |
+|----------|-------------|-----------------|
+| `SUPABASE_URL` | Your Supabase project URL | [Supabase dashboard](https://supabase.com/dashboard) → Project Settings → API |
+| `SUPABASE_ANON_KEY` | Your Supabase anonymous key | Same page as above |
+| `VOYAGE_API_KEY` | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys) |
+| `OPENROUTER_API_KEY` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys) |
+
+Example `.env` file:
 
 ```
 SUPABASE_URL=https://your-project.supabase.co
@@ -147,9 +93,9 @@ VOYAGE_API_KEY=your-voyage-api-key
 OPENROUTER_API_KEY=your-openrouter-api-key
 ```
 
-#### 3. Set up the database
+## Database Setup
 
-Run the SQL migrations in order against your Supabase project. You can paste them into the Supabase SQL editor or use the CLI:
+FixOnce stores memories in a Supabase Postgres database with pgvector. Run the SQL migrations in order against your Supabase project — either via the [SQL editor](https://supabase.com/dashboard) or the Supabase CLI:
 
 ```bash
 # Migrations are in packages/storage/migrations/
@@ -163,30 +109,24 @@ The migrations create:
 - HNSW index for vector similarity
 - Hybrid search RPC function (Reciprocal Rank Fusion)
 
-#### 4. Build
-
-```bash
-pnpm build
-```
-
-#### 5. Verify
-
-```bash
-pnpm typecheck
-```
-
 ## Usage
 
 ### MCP Server (recommended for Claude Code)
 
-Add FixOnce as an MCP server in your Claude Code settings:
+Run the MCP server directly:
+
+```bash
+npx fixonce-mcp
+```
+
+Or add it to your Claude Code MCP settings (`~/.claude/settings.json` or `.claude/settings.json`):
 
 ```json
 {
   "mcpServers": {
     "fixonce": {
-      "command": "node",
-      "args": ["./apps/mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["fixonce-mcp"],
       "env": {
         "SUPABASE_URL": "https://your-project.supabase.co",
         "SUPABASE_ANON_KEY": "your-anon-key",
@@ -208,11 +148,42 @@ This gives Claude Code access to 7 tools:
 | `fixonce_get_memory` | Retrieve a specific memory by ID |
 | `fixonce_update_memory` | Update an existing memory |
 | `fixonce_feedback` | Submit feedback on a memory (helpful, outdated, damaging) |
-| `fixonce_detect_environment` | Scan project for Midnight component versions |
+| `fixonce_detect_environment` | Scan project for component versions |
+
+### CLI
+
+```bash
+# Create a memory from stdin
+echo '{"title":"Use spread for Compact maps","content":"...","summary":"...","memory_type":"gotcha","source_type":"correction","language":"compact"}' | npx fixonce create
+
+# Search memories
+npx fixonce query "how to handle Compact map lookups"
+
+# Detect project environment
+npx fixonce detect
+
+# Get a specific memory
+npx fixonce get <memory-id>
+
+# All commands support --json for machine-readable output
+npx fixonce query --json "compact compiler errors"
+```
+
+### Web UI
+
+```bash
+npx fixonce-web
+```
+
+The dashboard provides:
+- Memory search and browsing
+- Memory creation and editing
+- Feedback submission
+- Real-time activity stream (SSE)
 
 ### Claude Code Hooks (automatic surfacing)
 
-Copy the example settings to enable automatic memory surfacing during sessions:
+If you're developing FixOnce locally, copy the example settings to enable automatic memory surfacing during sessions:
 
 ```bash
 cp apps/hooks/settings.example.json .claude/settings.json
@@ -228,50 +199,27 @@ This registers 5 hooks:
 | `PostToolUse` | After Write/Edit | Warns if anti-pattern matched (score > 0.5) |
 | `Stop` | Session ends | Surfaces final critical reminders |
 
-### CLI
+## Developing
 
 ```bash
-# Create a memory from stdin
-echo '{"title":"Use spread for Compact maps","content":"...","summary":"...","memory_type":"gotcha","source_type":"correction","language":"compact"}' | pnpm --filter fixonce dev create
-
-# Search memories
-pnpm --filter fixonce dev query "how to handle Compact map lookups"
-
-# Detect project environment
-pnpm --filter fixonce dev detect
-
-# Get a specific memory
-pnpm --filter fixonce dev get <memory-id>
-
-# All commands support --json for machine-readable output
-pnpm --filter fixonce dev query --json "compact compiler errors"
+git clone https://github.com/aaronbassett/fixonce.git
+cd fixonce
+pnpm install
+pnpm build
 ```
-
-### Web UI
-
-```bash
-# Start the web UI (Express backend + React frontend)
-pnpm --filter @fixonce/web dev
-```
-
-The dashboard provides:
-- Memory search and browsing
-- Memory creation and editing
-- Feedback submission
-- Real-time activity stream (SSE)
 
 ## Project Structure
 
-| Package | Description |
-|---------|-------------|
-| `@fixonce/shared` | Types, Zod v4 schemas, enums, version keys, structured errors |
-| `@fixonce/storage` | Supabase client, CRUD operations, hybrid search, Voyage AI embeddings |
-| `@fixonce/pipeline` | Write pipeline (quality gate, dedup), read pipeline (rewrite, search, rerank) |
-| `@fixonce/activity` | Cross-cutting activity logging with SSE pub-sub |
-| `@fixonce/mcp-server` | MCP server with 7 tools for Claude Code |
-| `fixonce` (CLI) | 9 commands for terminal-based management |
-| `@fixonce/web` | React 19 + Vite frontend, Express 5 backend |
-| `@fixonce/hooks` | 5 Claude Code lifecycle hooks |
+| Package | npm | Description |
+|---------|-----|-------------|
+| `@fixonce/shared` | | Types, Zod v4 schemas, enums, version keys, structured errors |
+| `@fixonce/storage` | | Supabase client, CRUD operations, hybrid search, Voyage AI embeddings |
+| `@fixonce/pipeline` | | Write pipeline (quality gate, dedup), read pipeline (rewrite, search, rerank) |
+| `@fixonce/activity` | | Cross-cutting activity logging with SSE pub-sub |
+| `@fixonce/cli` | `fixonce` | 9 commands for terminal-based management |
+| `@fixonce/mcp-server` | `fixonce-mcp` | MCP server with 7 tools for Claude Code |
+| `@fixonce/web` | `fixonce-web` | React 19 + Vite frontend, Express 5 backend |
+| `@fixonce/hooks` | | 5 Claude Code lifecycle hooks |
 
 ## License
 

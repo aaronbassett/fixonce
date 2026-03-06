@@ -38,9 +38,7 @@ async function main(): Promise<void> {
   const context: string[] = [];
 
   if (Object.keys(env.detected_versions).length > 0) {
-    context.push(
-      `Detected versions: ${JSON.stringify(env.detected_versions)}`,
-    );
+    context.push(`Detected versions: ${JSON.stringify(env.detected_versions)}`);
   }
 
   if (memories.results.length > 0) {

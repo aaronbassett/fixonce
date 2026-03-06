@@ -56,7 +56,12 @@ export function CreateMemory() {
         memory_type: memoryType as "guidance" | "anti_pattern",
         source_type: sourceType as "correction" | "discovery" | "instruction",
         language,
-        tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : undefined,
+        tags: tags
+          ? tags
+              .split(",")
+              .map((t) => t.trim())
+              .filter(Boolean)
+          : undefined,
         source_url: sourceUrl || undefined,
         project_name: projectName || undefined,
         confidence: Number(confidence),
@@ -233,7 +238,9 @@ export function CreateMemory() {
           }}
         >
           <strong>Duplicate Check:</strong> {dupPreview.outcome}
-          <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}>{dupPreview.reason}</p>
+          <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}>
+            {dupPreview.reason}
+          </p>
           {dupPreview.target_memory_id && (
             <p style={{ margin: "0.25rem 0 0", fontSize: "0.85rem" }}>
               Related memory: {dupPreview.target_memory_id}

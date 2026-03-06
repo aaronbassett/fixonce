@@ -17,7 +17,9 @@ export function registerFeedbackCommand(program: Command): void {
           memory_id: memoryId,
           text: opts.text as string | undefined,
           tags: opts.tags
-            ? (opts.tags as string).split(",").map((t: string) => t.trim()) as FeedbackTag[]
+            ? ((opts.tags as string)
+                .split(",")
+                .map((t: string) => t.trim()) as FeedbackTag[])
             : undefined,
           suggested_action: opts.action as SuggestedAction | undefined,
         });

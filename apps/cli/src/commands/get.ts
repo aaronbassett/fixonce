@@ -8,7 +8,11 @@ export function registerGetCommand(program: Command): void {
   program
     .command("get <id>")
     .description("Get a single memory by ID")
-    .option("--verbosity <level>", "Verbosity: small, medium, or large", "large")
+    .option(
+      "--verbosity <level>",
+      "Verbosity: small, medium, or large",
+      "large",
+    )
     .action(async (id: string, opts) => {
       try {
         const result = await getMemory({

@@ -17,10 +17,26 @@ const CONFIG_KEYS: Array<{
   jsonKey: keyof FixOnceConfig;
   label: string;
 }> = [
-  { envVar: "FIXONCE_SUPABASE_URL", jsonKey: "supabaseUrl", label: "Supabase project URL" },
-  { envVar: "FIXONCE_SUPABASE_ANON_KEY", jsonKey: "supabaseAnonKey", label: "Supabase anonymous key" },
-  { envVar: "FIXONCE_VOYAGE_API_KEY", jsonKey: "voyageApiKey", label: "Voyage AI API key" },
-  { envVar: "FIXONCE_OPENROUTER_API_KEY", jsonKey: "openrouterApiKey", label: "OpenRouter API key" },
+  {
+    envVar: "FIXONCE_SUPABASE_URL",
+    jsonKey: "supabaseUrl",
+    label: "Supabase project URL",
+  },
+  {
+    envVar: "FIXONCE_SUPABASE_ANON_KEY",
+    jsonKey: "supabaseAnonKey",
+    label: "Supabase anonymous key",
+  },
+  {
+    envVar: "FIXONCE_VOYAGE_API_KEY",
+    jsonKey: "voyageApiKey",
+    label: "Voyage AI API key",
+  },
+  {
+    envVar: "FIXONCE_OPENROUTER_API_KEY",
+    jsonKey: "openrouterApiKey",
+    label: "OpenRouter API key",
+  },
 ];
 
 export const SETTINGS_TEMPLATE: Record<string, string> = {

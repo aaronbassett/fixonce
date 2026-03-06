@@ -19,16 +19,11 @@ export function filterByVersionPredicates<
   return memories.filter((memory) => {
     if (!memory.version_predicates) return true;
 
-    return Object.entries(detectedVersions).every(
-      ([key, detectedVersion]) => {
-        const allowedVersions =
-          memory.version_predicates?.[
-            key as keyof typeof memory.version_predicates
-          ];
-        if (!allowedVersions) return true;
-        if (typeof detectedVersion !== "string") return true;
-        return allowedVersions.includes(detectedVersion);
-      },
-    );
+    return Object.entries(detectedVersions).every(([key, detectedVersion]) => {
+      const allowedVersions = memory.version_predicates?.[key];
+      if (!allowedVersions) return true;
+      if (typeof detectedVersion !== "string") return true;
+      return allowedVersions.includes(detectedVersion);
+    });
   });
 }

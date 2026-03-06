@@ -42,10 +42,13 @@ export async function detectDuplicates(
   language: string,
 ): Promise<DedupResult> {
   // Search for similar memories
-  let candidates: Memory[] = [];
+  let candidates: Memory[];
 
   try {
-    const embedding = await generateEmbedding(`${title} ${summary} ${content}`, "query");
+    const embedding = await generateEmbedding(
+      `${title} ${summary} ${content}`,
+      "query",
+    );
     candidates = await hybridSearch({
       query_text: `${title} ${summary}`,
       query_embedding: embedding,
@@ -53,7 +56,10 @@ export async function detectDuplicates(
       language,
     });
   } catch (embeddingErr) {
-    console.error("Hybrid search failed during dedup, falling back to FTS:", embeddingErr);
+    console.error(
+      "Hybrid search failed during dedup, falling back to FTS:",
+      embeddingErr,
+    );
     try {
       candidates = await ftsSearch({
         query_text: `${title} ${summary}`,
@@ -71,17 +77,33 @@ export async function detectDuplicates(
   }
 
   const existingStr = candidates
-    .map((m) => `[ID: ${m.id}]\nTitle: ${m.title}\nSummary: ${m.summary}\nContent: ${m.content}\n`)
+    .map(
+      (m) =>
+        `[ID: ${m.id}]\nTitle: ${m.title}\nSummary: ${m.summary}\nContent: ${m.content}\n`,
+    )
     .join("\n---\n");
 
   const userMessage = `NEW MEMORY:\nTitle: ${title}\nSummary: ${summary}\nContent: ${content}\n\nEXISTING MEMORIES:\n${existingStr}`;
 
-  const VALID_OUTCOMES = new Set<string>(["new", "discard", "replace", "update", "merge"]);
-  const result = await llmCallJSON<DedupResult>("duplicate_detection", SYSTEM_PROMPT, userMessage);
+  const VALID_OUTCOMES = new Set<string>([
+    "new",
+    "discard",
+    "replace",
+    "update",
+    "merge",
+  ]);
+  const result = await llmCallJSON<DedupResult>(
+    "duplicate_detection",
+    SYSTEM_PROMPT,
+    userMessage,
+  );
 
   if (!VALID_OUTCOMES.has(result.outcome)) {
-    console.error(`LLM returned unrecognised dedup outcome: ${String(result.outcome)}`);
-    return { outcome: "new", reason: "LLM returned unrecognised outcome; treating as new" };
+    console.error(`LLM returned unrecognised dedup outcome: ${result.outcome}`);
+    return {
+      outcome: "new",
+      reason: "LLM returned unrecognised outcome; treating as new",
+    };
   }
 
   return result;

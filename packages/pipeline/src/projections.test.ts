@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { Memory } from "@fixonce/shared";
+
+vi.mock("@fixonce/storage", () => ({
+  listFeedbackByMemoryId: vi.fn(),
+}));
+
 import { projectSmall, projectMedium } from "./projections.js";
 
 function makeMemory(overrides?: Partial<Memory>): Memory {

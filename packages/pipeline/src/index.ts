@@ -23,7 +23,11 @@ export { executeReadPipeline } from "./read/index.js";
 export { rewriteQuery } from "./read/query-rewriter.js";
 export { rerankResults } from "./read/reranker.js";
 export type { RankedMemory } from "./read/reranker.js";
-export { generateCacheKey, lookupCacheKey, clearExpiredKeys } from "./read/cache.js";
+export {
+  generateCacheKey,
+  lookupCacheKey,
+  clearExpiredKeys,
+} from "./read/cache.js";
 
 // Environment detection
 export { detectEnvironment as detectEnvironmentDirect } from "./environment.js";

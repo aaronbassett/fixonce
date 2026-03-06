@@ -50,13 +50,26 @@ router.get("/memories", async (req: Request, res: Response) => {
 
     const result = await queryMemories({
       query: str(q.query) ?? "",
-      rewrite: str(q.rewrite) === "true" ? true : str(q.rewrite) === "false" ? false : undefined,
+      rewrite:
+        str(q.rewrite) === "true"
+          ? true
+          : str(q.rewrite) === "false"
+            ? false
+            : undefined,
       type: str(q.type) as "simple" | "vector" | "hybrid" | undefined,
-      rerank: str(q.rerank) === "true" ? true : str(q.rerank) === "false" ? false : undefined,
+      rerank:
+        str(q.rerank) === "true"
+          ? true
+          : str(q.rerank) === "false"
+            ? false
+            : undefined,
       tags: tagsRaw ? tagsRaw.split(",") : undefined,
       language: str(q.language),
       project_name: str(q.project_name),
-      memory_type: str(q.memory_type) as "guidance" | "anti_pattern" | undefined,
+      memory_type: str(q.memory_type) as
+        | "guidance"
+        | "anti_pattern"
+        | undefined,
       created_after: str(q.created_after),
       updated_after: str(q.updated_after),
       max_results: str(q.max_results) ? Number(str(q.max_results)) : undefined,
@@ -85,7 +98,11 @@ router.post("/memories", async (req: Request, res: Response) => {
 // GET /api/memories/:id — getMemory
 router.get("/memories/:id", async (req: Request, res: Response) => {
   try {
-    const verbosity = str(req.query.verbosity) as "small" | "medium" | "large" | undefined;
+    const verbosity = str(req.query.verbosity) as
+      | "small"
+      | "medium"
+      | "large"
+      | undefined;
     const id = String(req.params.id);
     const result = await getMemory({
       id,
@@ -186,7 +203,11 @@ router.get("/environment", async (req: Request, res: Response) => {
 // GET /api/expand/:cache_key — expandCacheKey
 router.get("/expand/:cache_key", async (req: Request, res: Response) => {
   try {
-    const verbosity = str(req.query.verbosity) as "small" | "medium" | "large" | undefined;
+    const verbosity = str(req.query.verbosity) as
+      | "small"
+      | "medium"
+      | "large"
+      | undefined;
     const result = await expandCacheKey({
       cache_key: String(req.params.cache_key),
       verbosity,
@@ -198,19 +219,22 @@ router.get("/expand/:cache_key", async (req: Request, res: Response) => {
 });
 
 // POST /api/memories/preview-duplicates — preview duplicate candidates
-router.post("/memories/preview-duplicates", async (req: Request, res: Response) => {
-  try {
-    const { title, content, summary, language } = req.body;
-    const result = await detectDuplicates(
-      String(title ?? ""),
-      String(content ?? ""),
-      String(summary ?? ""),
-      String(language ?? "typescript"),
-    );
-    res.json(result);
-  } catch (err) {
-    handleError(res, err);
-  }
-});
+router.post(
+  "/memories/preview-duplicates",
+  async (req: Request, res: Response) => {
+    try {
+      const { title, content, summary, language } = req.body;
+      const result = await detectDuplicates(
+        String(title ?? ""),
+        String(content ?? ""),
+        String(summary ?? ""),
+        String(language ?? "typescript"),
+      );
+      res.json(result);
+    } catch (err) {
+      handleError(res, err);
+    }
+  },
+);
 
 export { router };

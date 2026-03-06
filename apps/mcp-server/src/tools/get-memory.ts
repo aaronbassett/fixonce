@@ -9,16 +9,28 @@ export function registerGetMemoryTool(server: McpServer): void {
     "Retrieve a single memory by its UUID. Returns the full memory content at the requested verbosity level. Use this when you already have a memory ID and want to read its details.",
     {
       id: z.string().uuid().describe("UUID of the memory to retrieve"),
-      verbosity: z.enum(["small", "medium", "large"]).optional().describe("Detail level: 'small' for core fields, 'medium' adds metadata, 'large' adds feedback summary (default: 'large')"),
+      verbosity: z
+        .enum(["small", "medium", "large"])
+        .optional()
+        .describe(
+          "Detail level: 'small' for core fields, 'medium' adds metadata, 'large' adds feedback summary (default: 'large')",
+        ),
     },
     async (args) => {
       try {
         const result = await getMemory(args);
-        return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+        return {
+          content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
+        };
       } catch (err) {
         if (err instanceof FixOnceError) {
           return {
-            content: [{ type: "text", text: JSON.stringify({ error: err.toJSON() }, null, 2) }],
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({ error: err.toJSON() }, null, 2),
+              },
+            ],
             isError: true,
           };
         }

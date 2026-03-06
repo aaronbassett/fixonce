@@ -109,12 +109,12 @@ export FIXONCE_OPENROUTER_API_KEY=your-openrouter-api-key
 
 Environment variables take priority over the settings file, so you can use them for per-project overrides.
 
-| Variable | Settings key | Description | Where to get it |
-|----------|-------------|-------------|-----------------|
-| `FIXONCE_SUPABASE_URL` | `supabaseUrl` | Your Supabase project URL | [Supabase dashboard](https://supabase.com/dashboard) → Project Settings → API |
-| `FIXONCE_SUPABASE_ANON_KEY` | `supabaseAnonKey` | Your Supabase anonymous key | Same page as above |
-| `FIXONCE_VOYAGE_API_KEY` | `voyageApiKey` | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys) |
-| `FIXONCE_OPENROUTER_API_KEY` | `openrouterApiKey` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys) |
+| Variable                     | Settings key       | Description                        | Where to get it                                                               |
+| ---------------------------- | ------------------ | ---------------------------------- | ----------------------------------------------------------------------------- |
+| `FIXONCE_SUPABASE_URL`       | `supabaseUrl`      | Your Supabase project URL          | [Supabase dashboard](https://supabase.com/dashboard) → Project Settings → API |
+| `FIXONCE_SUPABASE_ANON_KEY`  | `supabaseAnonKey`  | Your Supabase anonymous key        | Same page as above                                                            |
+| `FIXONCE_VOYAGE_API_KEY`     | `voyageApiKey`     | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys)   |
+| `FIXONCE_OPENROUTER_API_KEY` | `openrouterApiKey` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys)                    |
 
 When configuring the MCP server, you can also pass these directly via the `env` block in your settings (see [MCP Server](#mcp-server-recommended-for-claude-code) below).
 
@@ -128,6 +128,7 @@ FixOnce stores memories in a Supabase Postgres database with pgvector. Run the S
 ```
 
 The migrations create:
+
 - pgvector and uuid-ossp extensions
 - `memory`, `feedback`, and `activity_log` tables
 - Full-text search with weighted tsvector
@@ -165,15 +166,15 @@ Or add it to your Claude Code MCP settings (`~/.claude/settings.json` or `.claud
 
 This gives Claude Code access to 7 tools:
 
-| Tool | Description |
-|------|-------------|
-| `fixonce_create_memory` | Store a new memory (correction, gotcha, pattern) |
-| `fixonce_query` | Search memories with hybrid search + reranking |
-| `fixonce_expand` | Expand an overflow cache key to full memory |
-| `fixonce_get_memory` | Retrieve a specific memory by ID |
-| `fixonce_update_memory` | Update an existing memory |
-| `fixonce_feedback` | Submit feedback on a memory (helpful, outdated, damaging) |
-| `fixonce_detect_environment` | Scan project for component versions |
+| Tool                         | Description                                               |
+| ---------------------------- | --------------------------------------------------------- |
+| `fixonce_create_memory`      | Store a new memory (correction, gotcha, pattern)          |
+| `fixonce_query`              | Search memories with hybrid search + reranking            |
+| `fixonce_expand`             | Expand an overflow cache key to full memory               |
+| `fixonce_get_memory`         | Retrieve a specific memory by ID                          |
+| `fixonce_update_memory`      | Update an existing memory                                 |
+| `fixonce_feedback`           | Submit feedback on a memory (helpful, outdated, damaging) |
+| `fixonce_detect_environment` | Scan project for component versions                       |
 
 ### CLI
 
@@ -204,6 +205,7 @@ npx fixonce-web
 ```
 
 The dashboard provides:
+
 - Memory search and browsing
 - Memory creation and editing
 - Feedback submission
@@ -219,13 +221,13 @@ cp apps/hooks/settings.example.json .claude/settings.json
 
 This registers 5 hooks:
 
-| Hook | When | What |
-|------|------|------|
-| `SessionStart` | Session begins | Detects environment, surfaces critical memories |
-| `UserPromptSubmit` | User sends a prompt | Quick-searches for relevant memories |
-| `PreToolUse` | Before Write/Edit | Blocks if anti-pattern matched (score > 0.7) |
-| `PostToolUse` | After Write/Edit | Warns if anti-pattern matched (score > 0.5) |
-| `Stop` | Session ends | Surfaces final critical reminders |
+| Hook               | When                | What                                            |
+| ------------------ | ------------------- | ----------------------------------------------- |
+| `SessionStart`     | Session begins      | Detects environment, surfaces critical memories |
+| `UserPromptSubmit` | User sends a prompt | Quick-searches for relevant memories            |
+| `PreToolUse`       | Before Write/Edit   | Blocks if anti-pattern matched (score > 0.7)    |
+| `PostToolUse`      | After Write/Edit    | Warns if anti-pattern matched (score > 0.5)     |
+| `Stop`             | Session ends        | Surfaces final critical reminders               |
 
 ## Developing
 
@@ -238,16 +240,16 @@ pnpm build
 
 ## Project Structure
 
-| Package | npm | Description |
-|---------|-----|-------------|
-| `@fixonce/shared` | | Types, Zod v4 schemas, enums, version keys, structured errors |
-| `@fixonce/storage` | | Supabase client, CRUD operations, hybrid search, Voyage AI embeddings |
-| `@fixonce/pipeline` | | Write pipeline (quality gate, dedup), read pipeline (rewrite, search, rerank) |
-| `@fixonce/activity` | | Cross-cutting activity logging with SSE pub-sub |
-| `@fixonce/cli` | `fixonce` | 10 commands for terminal-based management |
-| `@fixonce/mcp-server` | `fixonce-mcp` | MCP server with 7 tools for Claude Code |
-| `@fixonce/web` | `fixonce-web` | React 19 + Vite frontend, Express 5 backend |
-| `@fixonce/hooks` | | 5 Claude Code lifecycle hooks |
+| Package               | npm           | Description                                                                   |
+| --------------------- | ------------- | ----------------------------------------------------------------------------- |
+| `@fixonce/shared`     |               | Types, Zod v4 schemas, enums, version keys, structured errors                 |
+| `@fixonce/storage`    |               | Supabase client, CRUD operations, hybrid search, Voyage AI embeddings         |
+| `@fixonce/pipeline`   |               | Write pipeline (quality gate, dedup), read pipeline (rewrite, search, rerank) |
+| `@fixonce/activity`   |               | Cross-cutting activity logging with SSE pub-sub                               |
+| `@fixonce/cli`        | `fixonce`     | 10 commands for terminal-based management                                     |
+| `@fixonce/mcp-server` | `fixonce-mcp` | MCP server with 7 tools for Claude Code                                       |
+| `@fixonce/web`        | `fixonce-web` | React 19 + Vite frontend, Express 5 backend                                   |
+| `@fixonce/hooks`      |               | 5 Claude Code lifecycle hooks                                                 |
 
 ## License
 

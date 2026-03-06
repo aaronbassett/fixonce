@@ -10,7 +10,10 @@ import type {
 } from "@fixonce/shared";
 import { listFeedbackByMemoryId } from "@fixonce/storage";
 
-export function projectSmall(memory: Memory, relevancyScore: number): MemorySmall {
+export function projectSmall(
+  memory: Memory,
+  relevancyScore: number,
+): MemorySmall {
   return {
     id: memory.id,
     title: memory.title,
@@ -21,7 +24,10 @@ export function projectSmall(memory: Memory, relevancyScore: number): MemorySmal
   };
 }
 
-export function projectMedium(memory: Memory, relevancyScore: number): MemoryMedium {
+export function projectMedium(
+  memory: Memory,
+  relevancyScore: number,
+): MemoryMedium {
   return {
     ...projectSmall(memory, relevancyScore),
     tags: memory.tags,
@@ -34,7 +40,9 @@ export function projectMedium(memory: Memory, relevancyScore: number): MemoryMed
   };
 }
 
-export async function buildFeedbackSummary(memoryId: string): Promise<FeedbackSummary> {
+export async function buildFeedbackSummary(
+  memoryId: string,
+): Promise<FeedbackSummary> {
   const feedback = await listFeedbackByMemoryId(memoryId);
   const tagCounts: Partial<Record<FeedbackTag, number>> = {};
   const flaggedActions: SuggestedAction[] = [];
@@ -43,7 +51,10 @@ export async function buildFeedbackSummary(memoryId: string): Promise<FeedbackSu
     for (const tag of fb.tags) {
       tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
     }
-    if (fb.suggested_action && (fb.suggested_action === "remove" || fb.suggested_action === "fix")) {
+    if (
+      fb.suggested_action &&
+      (fb.suggested_action === "remove" || fb.suggested_action === "fix")
+    ) {
       flaggedActions.push(fb.suggested_action);
     }
   }
@@ -55,7 +66,10 @@ export async function buildFeedbackSummary(memoryId: string): Promise<FeedbackSu
   };
 }
 
-export async function projectLarge(memory: Memory, relevancyScore: number): Promise<MemoryLarge> {
+export async function projectLarge(
+  memory: Memory,
+  relevancyScore: number,
+): Promise<MemoryLarge> {
   const feedbackSummary = await buildFeedbackSummary(memory.id);
   return {
     ...projectMedium(memory, relevancyScore),

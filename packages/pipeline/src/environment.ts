@@ -26,7 +26,9 @@ const PACKAGE_MAP: Record<string, ComponentKey> = {
   "@aspect-build/midnight-network": "network",
 };
 
-async function readJsonFile(filePath: string): Promise<Record<string, unknown> | null> {
+async function readJsonFile(
+  filePath: string,
+): Promise<Record<string, unknown> | null> {
   try {
     const raw = await readFile(filePath, "utf-8");
     return JSON.parse(raw) as Record<string, unknown>;
@@ -43,8 +45,11 @@ async function readTextFile(filePath: string): Promise<string | null> {
   }
 }
 
-function toDependencyRecord(value: unknown): Record<string, string> | undefined {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return undefined;
+function toDependencyRecord(
+  value: unknown,
+): Record<string, string> | undefined {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    return undefined;
   const obj = value as Record<string, unknown>;
   const result: Record<string, string> = {};
   for (const [k, v] of Object.entries(obj)) {

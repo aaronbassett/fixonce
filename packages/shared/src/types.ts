@@ -1,5 +1,18 @@
-import type { MemoryType, SourceType, CreatedBy, FeedbackTag, SuggestedAction, OperationType, SearchType, Verbosity } from "./enums.js";
-import type { VersionPredicates, DetectedVersions, ComponentKey } from "./version-keys.js";
+import type {
+  MemoryType,
+  SourceType,
+  CreatedBy,
+  FeedbackTag,
+  SuggestedAction,
+  OperationType,
+  SearchType,
+  Verbosity,
+} from "./enums.js";
+import type {
+  VersionPredicates,
+  DetectedVersions,
+  ComponentKey,
+} from "./version-keys.js";
 
 // ============= Core Entities =============
 
@@ -46,20 +59,34 @@ export interface ActivityLog {
 
 // ============= Verbosity Projections =============
 
-export type MemorySmall = Pick<Memory,
+export type MemorySmall = Pick<
+  Memory,
   "id" | "title" | "content" | "summary" | "memory_type"
 > & { relevancy_score: number };
 
-export type MemoryMedium = MemorySmall & Pick<Memory,
-  "tags" | "language" | "version_predicates" | "created_by" | "source_type" |
-  "created_at" | "updated_at"
->;
+export type MemoryMedium = MemorySmall &
+  Pick<
+    Memory,
+    | "tags"
+    | "language"
+    | "version_predicates"
+    | "created_by"
+    | "source_type"
+    | "created_at"
+    | "updated_at"
+  >;
 
-export type MemoryLarge = MemoryMedium & Pick<Memory,
-  "source_url" | "project_name" | "project_repo_url" |
-  "project_workspace_path" | "confidence" | "surfaced_count" |
-  "last_surfaced_at"
-> & { feedback_summary: FeedbackSummary };
+export type MemoryLarge = MemoryMedium &
+  Pick<
+    Memory,
+    | "source_url"
+    | "project_name"
+    | "project_repo_url"
+    | "project_workspace_path"
+    | "confidence"
+    | "surfaced_count"
+    | "last_surfaced_at"
+  > & { feedback_summary: FeedbackSummary };
 
 export interface FeedbackSummary {
   total_count: number;
@@ -95,7 +122,13 @@ export interface CreateMemoryInput {
 }
 
 export interface CreateMemoryResult {
-  status: "created" | "replaced" | "updated" | "merged" | "rejected" | "discarded";
+  status:
+    | "created"
+    | "replaced"
+    | "updated"
+    | "merged"
+    | "rejected"
+    | "discarded";
   memory?: Pick<Memory, "id" | "title" | "created_at">;
   dedup_outcome?: "new" | "discard" | "replace" | "update" | "merge";
   affected_memory_ids?: string[];

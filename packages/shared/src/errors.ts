@@ -29,7 +29,10 @@ export class FixOnceError extends Error {
   }
 }
 
-export function validationError(reason: string, suggestion: string): FixOnceError {
+export function validationError(
+  reason: string,
+  suggestion: string,
+): FixOnceError {
   return new FixOnceError({ stage: "validation", reason, suggestion });
 }
 
@@ -37,11 +40,17 @@ export function storageError(reason: string, suggestion: string): FixOnceError {
   return new FixOnceError({ stage: "storage", reason, suggestion });
 }
 
-export function qualityGateError(reason: string, suggestion: string): FixOnceError {
+export function qualityGateError(
+  reason: string,
+  suggestion: string,
+): FixOnceError {
   return new FixOnceError({ stage: "quality_gate", reason, suggestion });
 }
 
-export function duplicateDetectionError(reason: string, suggestion: string): FixOnceError {
+export function duplicateDetectionError(
+  reason: string,
+  suggestion: string,
+): FixOnceError {
   return new FixOnceError({ stage: "duplicate_detection", reason, suggestion });
 }
 
@@ -57,6 +66,9 @@ export function rerankError(reason: string, suggestion: string): FixOnceError {
   return new FixOnceError({ stage: "rerank", reason, suggestion });
 }
 
-export function embeddingError(reason: string, suggestion: string): FixOnceError {
+export function embeddingError(
+  reason: string,
+  suggestion: string,
+): FixOnceError {
   return new FixOnceError({ stage: "embedding", reason, suggestion });
 }

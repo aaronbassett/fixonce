@@ -11,11 +11,13 @@
 ### Task 1: Install Linting & Formatting Dependencies
 
 **Files:**
+
 - Modify: `package.json:11-16` (devDependencies)
 
 **Step 1: Install dev dependencies at workspace root**
 
 Run:
+
 ```bash
 pnpm add -Dw eslint @eslint/js typescript-eslint prettier eslint-config-prettier
 ```
@@ -25,6 +27,7 @@ Expected: 5 new entries in root `package.json` devDependencies. Exit 0.
 **Step 2: Verify installation**
 
 Run:
+
 ```bash
 pnpm exec eslint --version
 pnpm exec prettier --version
@@ -44,6 +47,7 @@ git commit -m "chore(deps): add eslint, prettier, and typescript-eslint"
 ### Task 2: Create ESLint Flat Config
 
 **Files:**
+
 - Create: `eslint.config.js`
 
 **Step 1: Create the ESLint config**
@@ -91,6 +95,7 @@ git commit -m "chore(lint): add eslint flat config with typescript-eslint strict
 ### Task 3: Create Prettier Config
 
 **Files:**
+
 - Create: `.prettierrc`
 - Create: `.prettierignore`
 
@@ -126,6 +131,7 @@ git commit -m "chore(lint): add prettier config and ignore file"
 ### Task 4: Add Lint and Format Scripts
 
 **Files:**
+
 - Modify: `package.json:5-9` (root scripts)
 - Modify: `packages/shared/package.json:13-16` (scripts)
 - Modify: `packages/storage/package.json:13-15` (scripts)
@@ -139,6 +145,7 @@ git commit -m "chore(lint): add prettier config and ignore file"
 **Step 1: Add format scripts to root `package.json`**
 
 Add to `"scripts"`:
+
 ```json
 "format:check": "prettier --check .",
 "format": "prettier --write ."
@@ -147,6 +154,7 @@ Add to `"scripts"`:
 **Step 2: Add `"lint": "eslint ."` to every workspace package**
 
 Add `"lint": "eslint ."` to the `"scripts"` section of each file:
+
 - `packages/shared/package.json`
 - `packages/storage/package.json`
 - `packages/pipeline/package.json`
@@ -172,6 +180,7 @@ git commit -m "chore(lint): add lint and format scripts to all workspace package
 **Step 1: Run the formatter**
 
 Run:
+
 ```bash
 pnpm format
 ```
@@ -181,11 +190,13 @@ Expected: Prettier reformats files to match config. Many files may change.
 **Step 2: Run the linter**
 
 Run:
+
 ```bash
 pnpm lint
 ```
 
 Expected: May produce errors. Fix any legitimate issues (unused vars, unsafe type assertions). If typescript-eslint strict rules produce false positives on patterns used throughout the codebase, add targeted rule overrides in `eslint.config.js`. Common ones to watch for:
+
 - `@typescript-eslint/no-unused-vars` on type re-exports
 - `@typescript-eslint/restrict-template-expressions` on error messages
 - `@typescript-eslint/no-misused-promises` on fire-and-forget async calls
@@ -193,6 +204,7 @@ Expected: May produce errors. Fix any legitimate issues (unused vars, unsafe typ
 **Step 3: Iterate until both pass cleanly**
 
 Run:
+
 ```bash
 pnpm format:check && pnpm lint
 ```
@@ -211,6 +223,7 @@ git commit -m "style: apply prettier formatting and fix lint errors"
 ### Task 6: Unit Tests for FixOnceError (`packages/shared`)
 
 **Files:**
+
 - Create: `packages/shared/src/errors.test.ts`
 
 **Context:** `packages/shared/src/errors.ts` exports `FixOnceError` (extends `Error`, has `stage`, `suggestion`, `toJSON()`) and 8 factory functions that create errors with preset `stage` values. All pure logic, no dependencies.
@@ -311,6 +324,7 @@ git commit -m "test(shared): add unit tests for FixOnceError and factory functio
 ### Task 7: Unit Tests for Zod Schemas (`packages/shared`)
 
 **Files:**
+
 - Create: `packages/shared/src/schema.test.ts`
 
 **Context:** `packages/shared/src/schema.ts` exports Zod schemas for all input types. Tests validate parsing of valid inputs, rejection of invalid inputs, and default value application. All pure Zod — no mocks.
@@ -360,8 +374,14 @@ describe("enum schemas", () => {
 
   it("FeedbackTagSchema accepts all 8 tags", () => {
     const tags = [
-      "helpful", "not_helpful", "damaging", "accurate",
-      "somewhat_accurate", "somewhat_inaccurate", "inaccurate", "outdated",
+      "helpful",
+      "not_helpful",
+      "damaging",
+      "accurate",
+      "somewhat_accurate",
+      "somewhat_inaccurate",
+      "inaccurate",
+      "outdated",
     ];
     for (const tag of tags) {
       expect(FeedbackTagSchema.parse(tag)).toBe(tag);
@@ -376,9 +396,18 @@ describe("enum schemas", () => {
 
   it("ComponentKeySchema accepts all 12 component keys", () => {
     const keys = [
-      "network", "node", "compact_compiler", "compact_runtime", "compact_js",
-      "onchain_runtime", "ledger", "wallet_sdk", "midnight_js",
-      "dapp_connector_api", "midnight_indexer", "proof_server",
+      "network",
+      "node",
+      "compact_compiler",
+      "compact_runtime",
+      "compact_js",
+      "onchain_runtime",
+      "ledger",
+      "wallet_sdk",
+      "midnight_js",
+      "dapp_connector_api",
+      "midnight_indexer",
+      "proof_server",
     ];
     for (const k of keys) {
       expect(ComponentKeySchema.parse(k)).toBe(k);
@@ -543,6 +572,7 @@ git commit -m "test(shared): add unit tests for zod schema validation"
 ### Task 8: Unit Tests for Version Filter (`packages/storage`)
 
 **Files:**
+
 - Create: `packages/storage/vitest.config.ts`
 - Modify: `packages/storage/package.json:13-15` (add test script)
 - Create: `packages/storage/src/version-filter.test.ts`
@@ -620,9 +650,7 @@ describe("filterByVersionPredicates", () => {
   });
 
   it("excludes when detected version is not in allowed list", () => {
-    const memories = [
-      makeMemory("1", { compact_compiler: ["0.14.0"] }),
-    ];
+    const memories = [makeMemory("1", { compact_compiler: ["0.14.0"] })];
     const result = filterByVersionPredicates(memories, {
       compact_compiler: "0.16.0",
     });
@@ -651,9 +679,7 @@ describe("filterByVersionPredicates", () => {
   });
 
   it("missing key in predicates means no constraint on that component", () => {
-    const memories = [
-      makeMemory("1", { compact_compiler: ["0.14.0"] }),
-    ];
+    const memories = [makeMemory("1", { compact_compiler: ["0.14.0"] })];
     const result = filterByVersionPredicates(memories, {
       wallet_sdk: "1.0.0",
     });
@@ -680,6 +706,7 @@ git commit -m "test(storage): add unit tests for version predicate filtering"
 ### Task 9: Unit Tests for Credential Check (`packages/pipeline`)
 
 **Files:**
+
 - Create: `packages/pipeline/vitest.config.ts`
 - Modify: `packages/pipeline/package.json:13-15` (add test script)
 - Create: `packages/pipeline/src/write/credential-check.test.ts`
@@ -734,9 +761,7 @@ describe("checkForCredentials", () => {
   });
 
   it("detects Stripe-style keys (sk-/pk-)", () => {
-    const result = checkForCredentials(
-      "sk-proj_abcdefghijklmnopqrstuvwx",
-    );
+    const result = checkForCredentials("sk-proj_abcdefghijklmnopqrstuvwx");
     expect(result.found).toBe(true);
   });
 
@@ -809,6 +834,7 @@ git commit -m "test(pipeline): add unit tests for credential detection"
 ### Task 10: Unit Tests for Cache (`packages/pipeline`)
 
 **Files:**
+
 - Create: `packages/pipeline/src/read/cache.test.ts`
 
 **Context:** `packages/pipeline/src/read/cache.ts` exports `generateCacheKey(memoryId)`, `lookupCacheKey(key)`, and `clearExpiredKeys()`. Uses a module-level `Map<string, CacheEntry>` with 30-minute TTL. Keys are `ck_` prefixed. Uses `vi.useFakeTimers()` to control time — the cache module shares state across tests within a file, but fake timers let us control expiration precisely.
@@ -819,11 +845,7 @@ Create `packages/pipeline/src/read/cache.test.ts`:
 
 ```ts
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import {
-  generateCacheKey,
-  lookupCacheKey,
-  clearExpiredKeys,
-} from "./cache.js";
+import { generateCacheKey, lookupCacheKey, clearExpiredKeys } from "./cache.js";
 
 describe("cache", () => {
   beforeEach(() => {
@@ -898,6 +920,7 @@ git commit -m "test(pipeline): add unit tests for cache key lifecycle and TTL"
 ### Task 11: Unit Tests for Projections (`packages/pipeline`)
 
 **Files:**
+
 - Create: `packages/pipeline/src/projections.test.ts`
 
 **Context:** `packages/pipeline/src/projections.ts` exports `projectSmall(memory, score)` and `projectMedium(memory, score)` — pure data projections that pick specific fields from a `Memory` object. `projectLarge` and `buildFeedbackSummary` call `@fixonce/storage` so we skip those (no API mocking per requirement).
@@ -1006,6 +1029,7 @@ git commit -m "test(pipeline): add unit tests for verbosity projections"
 ### Task 12: Unit Tests for Environment Detection (`packages/pipeline`)
 
 **Files:**
+
 - Create: `packages/pipeline/src/environment.test.ts`
 
 **Context:** `packages/pipeline/src/environment.ts` exports `detectEnvironment(input)`. It reads `package.json` and `compact.toml` via `node:fs/promises.readFile`, scans npm dependency names against `PACKAGE_MAP` (12 entries), strips version prefixes (`^`, `~`, `>=`), and returns detected/undetected components. We mock `node:fs/promises` — same pattern as existing `config.test.ts`.
@@ -1145,6 +1169,7 @@ git commit -m "test(pipeline): add unit tests for environment detection"
 ### Task 13: Unit & Integration Tests for Activity Stream (`packages/activity`)
 
 **Files:**
+
 - Create: `packages/activity/vitest.config.ts`
 - Modify: `packages/activity/package.json:13-15` (add test script)
 - Create: `packages/activity/src/stream.test.ts`
@@ -1300,6 +1325,7 @@ git commit -m "test(activity): add unit and integration tests for event stream"
 ### Task 14: GitHub Actions CI Workflow
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Context:** Existing `.github/workflows/release.yml` uses Node 24 + pnpm v4 action + `actions/checkout@v4`. Mirror this setup. Turbo tasks `test` and `typecheck` have `"dependsOn": ["^build"]` so turbo auto-builds dependencies. The `lint` task has no dependencies.
@@ -1359,12 +1385,14 @@ git commit -m "ci: add github actions workflow for PR checks"
 ### Task 15: Husky Pre-Push Hook
 
 **Files:**
+
 - Modify: `package.json` (add husky devDep + prepare script)
 - Create: `.husky/pre-push`
 
 **Step 1: Install husky**
 
 Run:
+
 ```bash
 pnpm add -Dw husky
 ```
@@ -1376,6 +1404,7 @@ Add `"prepare": "husky"` to root `package.json` scripts section.
 **Step 3: Initialize husky**
 
 Run:
+
 ```bash
 pnpm exec husky init
 ```
@@ -1385,6 +1414,7 @@ Expected: Creates `.husky/` directory with a default `pre-commit` hook.
 **Step 4: Remove default pre-commit hook**
 
 Run:
+
 ```bash
 rm .husky/pre-commit
 ```
@@ -1414,6 +1444,7 @@ git commit -m "chore: add husky pre-push hook for local quality checks"
 **Step 1: Run all quality checks**
 
 Run:
+
 ```bash
 pnpm format:check
 ```
@@ -1423,6 +1454,7 @@ Expected: Exit 0, all files formatted correctly.
 **Step 2: Run linter**
 
 Run:
+
 ```bash
 pnpm lint
 ```
@@ -1432,6 +1464,7 @@ Expected: Exit 0, zero errors, zero warnings.
 **Step 3: Run type checker**
 
 Run:
+
 ```bash
 pnpm typecheck
 ```
@@ -1441,6 +1474,7 @@ Expected: Exit 0, no type errors across all packages.
 **Step 4: Run all tests**
 
 Run:
+
 ```bash
 pnpm test
 ```
@@ -1450,6 +1484,7 @@ Expected: Exit 0, all tests pass across packages/shared, packages/storage, packa
 **Step 5: Verify turbo caching works**
 
 Run:
+
 ```bash
 pnpm test
 ```
@@ -1460,23 +1495,24 @@ Expected: Turbo reports cache hits, completes near-instantly.
 
 ## Key Files Reference
 
-| File | Purpose |
-|------|---------|
-| `eslint.config.js` | Root ESLint flat config (monorepo-wide) |
-| `.prettierrc` | Prettier formatting config |
-| `.prettierignore` | Prettier ignore patterns |
-| `.github/workflows/ci.yml` | PR quality check workflow |
-| `.husky/pre-push` | Local pre-push quality gate |
-| `packages/shared/src/errors.test.ts` | FixOnceError unit tests |
-| `packages/shared/src/schema.test.ts` | Zod schema validation tests |
-| `packages/storage/src/version-filter.test.ts` | Version filter unit tests |
-| `packages/pipeline/src/write/credential-check.test.ts` | Credential detection tests |
-| `packages/pipeline/src/read/cache.test.ts` | Cache TTL unit tests |
-| `packages/pipeline/src/projections.test.ts` | Verbosity projection tests |
-| `packages/pipeline/src/environment.test.ts` | Environment detection tests |
-| `packages/activity/src/stream.test.ts` | Event stream unit + integration tests |
+| File                                                   | Purpose                                 |
+| ------------------------------------------------------ | --------------------------------------- |
+| `eslint.config.js`                                     | Root ESLint flat config (monorepo-wide) |
+| `.prettierrc`                                          | Prettier formatting config              |
+| `.prettierignore`                                      | Prettier ignore patterns                |
+| `.github/workflows/ci.yml`                             | PR quality check workflow               |
+| `.husky/pre-push`                                      | Local pre-push quality gate             |
+| `packages/shared/src/errors.test.ts`                   | FixOnceError unit tests                 |
+| `packages/shared/src/schema.test.ts`                   | Zod schema validation tests             |
+| `packages/storage/src/version-filter.test.ts`          | Version filter unit tests               |
+| `packages/pipeline/src/write/credential-check.test.ts` | Credential detection tests              |
+| `packages/pipeline/src/read/cache.test.ts`             | Cache TTL unit tests                    |
+| `packages/pipeline/src/projections.test.ts`            | Verbosity projection tests              |
+| `packages/pipeline/src/environment.test.ts`            | Environment detection tests             |
+| `packages/activity/src/stream.test.ts`                 | Event stream unit + integration tests   |
 
 ## Existing Patterns to Reuse
+
 - `packages/shared/vitest.config.ts` — vitest config pattern (`clearMocks: true`)
 - `packages/shared/src/config.test.ts` — existing test style (`vi.mock` for `node:fs`)
 - `.github/workflows/release.yml` — CI setup pattern (Node 24, pnpm v4 action)

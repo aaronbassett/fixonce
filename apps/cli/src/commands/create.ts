@@ -11,7 +11,10 @@ export function registerCreateCommand(program: Command): void {
     .option("--content <content>", "Memory content (or pipe via stdin)")
     .requiredOption("--summary <summary>", "Brief summary")
     .requiredOption("--memory-type <type>", "guidance or anti_pattern")
-    .requiredOption("--source-type <type>", "correction, discovery, or instruction")
+    .requiredOption(
+      "--source-type <type>",
+      "correction, discovery, or instruction",
+    )
     .requiredOption("--language <lang>", "Language context")
     .option("--tags <tags>", "Comma-separated tags")
     .option("--source-url <url>", "Source URL")
@@ -26,7 +29,9 @@ export function registerCreateCommand(program: Command): void {
           content = await readStdin();
         }
         if (!content) {
-          console.error("Error: --content is required or pipe content via stdin");
+          console.error(
+            "Error: --content is required or pipe content via stdin",
+          );
           return process.exit(1);
         }
 
@@ -35,12 +40,19 @@ export function registerCreateCommand(program: Command): void {
           content,
           summary: opts.summary as string,
           memory_type: opts.memoryType as string as "guidance" | "anti_pattern",
-          source_type: opts.sourceType as string as "correction" | "discovery" | "instruction",
+          source_type: opts.sourceType as string as
+            | "correction"
+            | "discovery"
+            | "instruction",
           created_by: "human",
           language: opts.language as string,
-          tags: opts.tags ? (opts.tags as string).split(",").map((t: string) => t.trim()) : undefined,
+          tags: opts.tags
+            ? (opts.tags as string).split(",").map((t: string) => t.trim())
+            : undefined,
           source_url: opts.sourceUrl as string | undefined,
-          version_predicates: opts.version ? JSON.parse(opts.version as string) : undefined,
+          version_predicates: opts.version
+            ? JSON.parse(opts.version as string)
+            : undefined,
           project_name: opts.projectName as string | undefined,
           project_repo_url: opts.projectRepoUrl as string | undefined,
           confidence: opts.confidence as number | undefined,

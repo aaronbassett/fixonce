@@ -1,6 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { fetchMemories, deleteMemoryApi, updateMemoryApi } from "../api/client.ts";
+import {
+  fetchMemories,
+  deleteMemoryApi,
+  updateMemoryApi,
+} from "../api/client.ts";
 import type { QueryMemoriesResult } from "@fixonce/shared";
 
 export function Dashboard() {
@@ -9,7 +13,8 @@ export function Dashboard() {
     guidance: number;
     antiPattern: number;
   } | null>(null);
-  const [flaggedResults, setFlaggedResults] = useState<QueryMemoriesResult | null>(null);
+  const [flaggedResults, setFlaggedResults] =
+    useState<QueryMemoriesResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,11 +22,22 @@ export function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [allResults, guidanceResults, antiPatternResults] = await Promise.all([
-        fetchMemories({ query: "", verbosity: "small", max_results: "1" }),
-        fetchMemories({ query: "", memory_type: "guidance", verbosity: "small", max_results: "1" }),
-        fetchMemories({ query: "", memory_type: "anti_pattern", verbosity: "small", max_results: "1" }),
-      ]);
+      const [allResults, guidanceResults, antiPatternResults] =
+        await Promise.all([
+          fetchMemories({ query: "", verbosity: "small", max_results: "1" }),
+          fetchMemories({
+            query: "",
+            memory_type: "guidance",
+            verbosity: "small",
+            max_results: "1",
+          }),
+          fetchMemories({
+            query: "",
+            memory_type: "anti_pattern",
+            verbosity: "small",
+            max_results: "1",
+          }),
+        ]);
 
       setStats({
         total: allResults.total_found,
@@ -36,7 +52,9 @@ export function Dashboard() {
       });
       setFlaggedResults(flagged);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+      setError(
+        err instanceof Error ? err.message : "Failed to load dashboard data",
+      );
     } finally {
       setLoading(false);
     }
@@ -56,7 +74,9 @@ export function Dashboard() {
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm("Permanently delete this memory? This cannot be undone.")) {
+    if (
+      !window.confirm("Permanently delete this memory? This cannot be undone.")
+    ) {
       return;
     }
     try {
@@ -105,10 +125,7 @@ export function Dashboard() {
                 <td style={tdStyle}>{m.memory_type}</td>
                 <td style={tdStyle}>{m.relevancy_score.toFixed(2)}</td>
                 <td style={tdStyle}>
-                  <button
-                    onClick={() => handleDisable(m.id)}
-                    style={btnStyle}
-                  >
+                  <button onClick={() => handleDisable(m.id)} style={btnStyle}>
                     Disable
                   </button>
                   <button

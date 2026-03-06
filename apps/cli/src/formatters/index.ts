@@ -47,7 +47,9 @@ export function formatCreateResult(result: CreateMemoryResult): string {
 export function formatQueryResult(result: QueryMemoriesResult): string {
   const lines: string[] = [];
   lines.push(`Found ${result.total_found} result(s)`);
-  lines.push(`Pipeline: search=${result.pipeline.search_type}, rewrite=${result.pipeline.rewrite_used}, rerank=${result.pipeline.rerank_used}`);
+  lines.push(
+    `Pipeline: search=${result.pipeline.search_type}, rewrite=${result.pipeline.rewrite_used}, rerank=${result.pipeline.rerank_used}`,
+  );
   lines.push("");
 
   for (const memory of result.results) {
@@ -69,7 +71,9 @@ function formatOverflowEntry(entry: OverflowEntry): string {
   return `  [${entry.cache_key}] ${entry.title} (relevancy: ${entry.relevancy_score.toFixed(2)})`;
 }
 
-export function formatMemory(memory: MemorySmall | MemoryMedium | MemoryLarge): string {
+export function formatMemory(
+  memory: MemorySmall | MemoryMedium | MemoryLarge,
+): string {
   const lines: string[] = [];
   lines.push(`ID: ${memory.id}`);
   lines.push(`Title: ${memory.title}`);
@@ -110,7 +114,9 @@ export function formatMemory(memory: MemorySmall | MemoryMedium | MemoryLarge): 
     }
     lines.push(`Feedback: ${lg.feedback_summary.total_count} total`);
     if (lg.feedback_summary.flagged_actions.length > 0) {
-      lines.push(`Flagged actions: ${lg.feedback_summary.flagged_actions.join(", ")}`);
+      lines.push(
+        `Flagged actions: ${lg.feedback_summary.flagged_actions.join(", ")}`,
+      );
     }
   }
 
@@ -148,8 +154,11 @@ export function formatDetectResult(result: DetectEnvironmentResult): string {
   if (entries.length > 0) {
     lines.push("Detected versions:");
     for (const [component, version] of entries) {
-      const source = result.scan_sources[component as keyof typeof result.scan_sources];
-      lines.push(`  ${component}: ${version}${source ? ` (from ${source})` : ""}`);
+      const source =
+        result.scan_sources[component as keyof typeof result.scan_sources];
+      lines.push(
+        `  ${component}: ${version}${source ? ` (from ${source})` : ""}`,
+      );
     }
   } else {
     lines.push("No versions detected.");

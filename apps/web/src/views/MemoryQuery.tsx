@@ -143,18 +143,31 @@ export function MemoryQuery() {
 
           {results.results.map((memory) => (
             <div key={memory.id} style={cardStyle}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Link to={`/memories/${memory.id}`} style={{ fontWeight: 600, fontSize: "1.1rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <Link
+                  to={`/memories/${memory.id}`}
+                  style={{ fontWeight: 600, fontSize: "1.1rem" }}
+                >
                   {memory.title}
                 </Link>
                 <span style={scoreBadge}>
                   {memory.relevancy_score.toFixed(2)}
                 </span>
               </div>
-              <p style={{ color: "#555", margin: "0.5rem 0" }}>{memory.summary}</p>
+              <p style={{ color: "#555", margin: "0.5rem 0" }}>
+                {memory.summary}
+              </p>
               <div style={{ fontSize: "0.8rem", color: "#888" }}>
                 {memory.memory_type}
-                {"tags" in memory && memory.tags.length > 0 && ` | ${memory.tags.join(", ")}`}
+                {"tags" in memory &&
+                  memory.tags.length > 0 &&
+                  ` | ${memory.tags.join(", ")}`}
               </div>
             </div>
           ))}
@@ -163,7 +176,10 @@ export function MemoryQuery() {
             <div style={{ marginTop: "1rem" }}>
               <h3>Overflow ({results.overflow.length})</h3>
               {results.overflow.map((entry) => (
-                <div key={entry.id} style={{ padding: "0.25rem 0", fontSize: "0.875rem" }}>
+                <div
+                  key={entry.id}
+                  style={{ padding: "0.25rem 0", fontSize: "0.875rem" }}
+                >
                   <Link to={`/memories/${entry.id}`}>{entry.title}</Link>
                   <span style={{ color: "#888", marginLeft: "0.5rem" }}>
                     ({entry.relevancy_score.toFixed(2)})

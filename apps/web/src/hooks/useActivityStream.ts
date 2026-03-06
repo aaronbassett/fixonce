@@ -8,9 +8,9 @@ export interface ActivityEvent {
   created_at: string;
 }
 
-export function useActivityStream(
-  onEvent: (event: ActivityEvent) => void,
-): { connected: boolean } {
+export function useActivityStream(onEvent: (event: ActivityEvent) => void): {
+  connected: boolean;
+} {
   const [connected, setConnected] = useState(false);
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;

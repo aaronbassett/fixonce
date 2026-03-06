@@ -1,6 +1,6 @@
 const CREDENTIAL_PATTERNS = [
-  /(?:api[_-]?key|apikey)\s*[:=]\s*['"]?[a-zA-Z0-9_\-]{20,}/i,
-  /(?:secret|token|password|passwd|pwd)\s*[:=]\s*['"]?[a-zA-Z0-9_\-]{8,}/i,
+  /(?:api[_-]?key|apikey)\s*[:=]\s*['"]?[a-zA-Z0-9_-]{20,}/i,
+  /(?:secret|token|password|passwd|pwd)\s*[:=]\s*['"]?[a-zA-Z0-9_-]{8,}/i,
   /(?:sk|pk|rk)[-_][a-zA-Z0-9]{20,}/,
   /(?:ghp|gho|ghu|ghs|ghr)_[a-zA-Z0-9]{36,}/,
   /(?:xox[bpors])-[a-zA-Z0-9-]+/,
@@ -10,7 +10,10 @@ const CREDENTIAL_PATTERNS = [
   /(?:mongodb|postgres|mysql|redis):\/\/[^\s]+:[^\s]+@/i,
 ];
 
-export function checkForCredentials(text: string): { found: boolean; patterns: string[] } {
+export function checkForCredentials(text: string): {
+  found: boolean;
+  patterns: string[];
+} {
   const found: string[] = [];
 
   for (const pattern of CREDENTIAL_PATTERNS) {

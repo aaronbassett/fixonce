@@ -37,20 +37,28 @@ import { lookupCacheKey } from "./read/cache.js";
 import { detectEnvironment as scanEnvironment } from "./environment.js";
 import { projectByVerbosity } from "./projections.js";
 
-export async function createMemory(rawInput: CreateMemoryInput): Promise<CreateMemoryResult> {
+export async function createMemory(
+  rawInput: CreateMemoryInput,
+): Promise<CreateMemoryResult> {
   const input = CreateMemoryInputSchema.parse(rawInput);
   const result = await executeWritePipeline(input);
 
-  await logActivity("create", {
-    status: result.status,
-    memory_id: result.memory?.id,
-    dedup_outcome: result.dedup_outcome,
-  }, result.memory?.id);
+  await logActivity(
+    "create",
+    {
+      status: result.status,
+      memory_id: result.memory?.id,
+      dedup_outcome: result.dedup_outcome,
+    },
+    result.memory?.id,
+  );
 
   return result;
 }
 
-export async function queryMemories(rawInput: QueryMemoriesInput): Promise<QueryMemoriesResult> {
+export async function queryMemories(
+  rawInput: QueryMemoriesInput,
+): Promise<QueryMemoriesResult> {
   const input = QueryMemoriesInputSchema.parse(rawInput);
   const result = await executeReadPipeline(input);
 
@@ -66,7 +74,9 @@ export async function queryMemories(rawInput: QueryMemoriesInput): Promise<Query
   return result;
 }
 
-export async function expandCacheKey(rawInput: ExpandCacheKeyInput): Promise<ExpandCacheKeyResult> {
+export async function expandCacheKey(
+  rawInput: ExpandCacheKeyInput,
+): Promise<ExpandCacheKeyResult> {
   const input = ExpandCacheKeyInputSchema.parse(rawInput);
   const verbosity = input.verbosity ?? "small";
 
@@ -90,16 +100,22 @@ export async function expandCacheKey(rawInput: ExpandCacheKeyInput): Promise<Exp
 
   const projected = await projectByVerbosity(memory, 0, verbosity);
 
-  await logActivity("query", {
-    cache_key: input.cache_key,
-    memory_id: memoryId,
-    verbosity,
-  }, memoryId);
+  await logActivity(
+    "query",
+    {
+      cache_key: input.cache_key,
+      memory_id: memoryId,
+      verbosity,
+    },
+    memoryId,
+  );
 
   return { memory: projected };
 }
 
-export async function getMemory(rawInput: GetMemoryInput): Promise<GetMemoryResult> {
+export async function getMemory(
+  rawInput: GetMemoryInput,
+): Promise<GetMemoryResult> {
   const input = GetMemoryInputSchema.parse(rawInput);
   const verbosity = input.verbosity ?? "large";
 
@@ -117,7 +133,9 @@ export async function getMemory(rawInput: GetMemoryInput): Promise<GetMemoryResu
   return { memory: projected };
 }
 
-export async function updateMemory(rawInput: UpdateMemoryInput): Promise<UpdateMemoryResult> {
+export async function updateMemory(
+  rawInput: UpdateMemoryInput,
+): Promise<UpdateMemoryResult> {
   const input = UpdateMemoryInputSchema.parse(rawInput);
   const { id, ...updates } = input;
 
@@ -149,19 +167,29 @@ export async function updateMemory(rawInput: UpdateMemoryInput): Promise<UpdateM
       });
   }
 
-  await logActivity("update", {
-    memory_id: id,
-    fields_updated: Object.keys(updates),
-    embedding_regenerating: embeddingRegenerating,
-  }, id);
+  await logActivity(
+    "update",
+    {
+      memory_id: id,
+      fields_updated: Object.keys(updates),
+      embedding_regenerating: embeddingRegenerating,
+    },
+    id,
+  );
 
   return {
-    memory: { id: updated.id, title: updated.title, updated_at: updated.updated_at },
+    memory: {
+      id: updated.id,
+      title: updated.title,
+      updated_at: updated.updated_at,
+    },
     embedding_regenerating: embeddingRegenerating,
   };
 }
 
-export async function submitFeedback(rawInput: SubmitFeedbackInput): Promise<SubmitFeedbackResult> {
+export async function submitFeedback(
+  rawInput: SubmitFeedbackInput,
+): Promise<SubmitFeedbackResult> {
   const input = SubmitFeedbackInputSchema.parse(rawInput);
 
   const memory = await getMemoryById(input.memory_id);
@@ -185,13 +213,17 @@ export async function submitFeedback(rawInput: SubmitFeedbackInput): Promise<Sub
     input.suggested_action === "fix" ||
     (input.tags ?? []).includes("damaging");
 
-  await logActivity("feedback", {
-    memory_id: input.memory_id,
-    feedback_id: feedback.id,
-    tags: input.tags,
-    suggested_action: input.suggested_action,
-    memory_flagged: memoryFlagged,
-  }, input.memory_id);
+  await logActivity(
+    "feedback",
+    {
+      memory_id: input.memory_id,
+      feedback_id: feedback.id,
+      tags: input.tags,
+      suggested_action: input.suggested_action,
+      memory_flagged: memoryFlagged,
+    },
+    input.memory_id,
+  );
 
   return {
     feedback: {

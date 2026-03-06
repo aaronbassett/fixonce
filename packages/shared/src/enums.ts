@@ -51,8 +51,7 @@ export const OperationType = {
   FEEDBACK: "feedback",
   DETECT: "detect",
 } as const;
-export type OperationType =
-  (typeof OperationType)[keyof typeof OperationType];
+export type OperationType = (typeof OperationType)[keyof typeof OperationType];
 
 // Search type (parameter value, not DB enum)
 export const SearchType = {

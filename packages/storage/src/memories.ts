@@ -98,7 +98,8 @@ export async function listEnabledMemories(options?: {
     .order("updated_at", { ascending: false });
 
   if (options?.language) query = query.eq("language", options.language);
-  if (options?.memory_type) query = query.eq("memory_type", options.memory_type);
+  if (options?.memory_type)
+    query = query.eq("memory_type", options.memory_type);
   if (options?.tags?.length) query = query.contains("tags", options.tags);
   if (options?.limit) query = query.limit(options.limit);
   if (options?.offset)
@@ -130,7 +131,7 @@ export async function incrementSurfacedCount(ids: string[]): Promise<void> {
         const { error: updateError } = await supabase
           .from("memory")
           .update({
-            surfaced_count: (data.surfaced_count ?? 0) + 1,
+            surfaced_count: (Number(data.surfaced_count) || 0) + 1,
             last_surfaced_at: new Date().toISOString(),
           })
           .eq("id", id);

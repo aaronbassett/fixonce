@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "vite build && tsup server/index.ts --format esm --out-dir dist/server",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

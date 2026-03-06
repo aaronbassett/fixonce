@@ -12,6 +12,7 @@
   },
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
+    "lint": "eslint .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

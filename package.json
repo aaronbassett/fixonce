@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
     "lint": "turbo run lint",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"

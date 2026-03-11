@@ -29,14 +29,18 @@ export async function hybridSearch(
     results = results.filter((m) => m.language === options.language);
   if (options.memory_type)
     results = results.filter((m) => m.memory_type === options.memory_type);
-  if (options.tags?.length)
-    results = results.filter((m) =>
-      options.tags!.every((t) => m.tags.includes(t)),
-    );
-  if (options.created_after)
-    results = results.filter((m) => m.created_at >= options.created_after!);
-  if (options.updated_after)
-    results = results.filter((m) => m.updated_at >= options.updated_after!);
+  if (options.tags?.length) {
+    const { tags } = options;
+    results = results.filter((m) => tags.every((t) => m.tags.includes(t)));
+  }
+  if (options.created_after) {
+    const { created_after } = options;
+    results = results.filter((m) => m.created_at >= created_after);
+  }
+  if (options.updated_after) {
+    const { updated_after } = options;
+    results = results.filter((m) => m.updated_at >= updated_after);
+  }
 
   return results;
 }

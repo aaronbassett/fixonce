@@ -19,7 +19,17 @@ export function handleError(err: unknown, jsonMode: boolean): never {
   } else {
     const message = err instanceof Error ? err.message : String(err);
     if (jsonMode) {
-      console.error(JSON.stringify({ stage: "unknown", reason: message, suggestion: "Check the error details and try again." }, null, 2));
+      console.error(
+        JSON.stringify(
+          {
+            stage: "unknown",
+            reason: message,
+            suggestion: "Check the error details and try again.",
+          },
+          null,
+          2,
+        ),
+      );
     } else {
       console.error(`Error: ${message}`);
     }

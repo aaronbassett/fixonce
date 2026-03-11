@@ -35,7 +35,8 @@ export function RecentFeedback() {
 
       // Sort by date descending
       allFeedback.sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
       );
 
       setItems(allFeedback);
@@ -51,7 +52,8 @@ export function RecentFeedback() {
   }, [loadFeedback]);
 
   const filteredItems = items.filter((fb) => {
-    if (filterTag && !fb.tags.includes(filterTag as Feedback["tags"][number])) return false;
+    if (filterTag && !fb.tags.includes(filterTag as Feedback["tags"][number]))
+      return false;
     if (filterAction && fb.suggested_action !== filterAction) return false;
     return true;
   });
@@ -117,7 +119,9 @@ export function RecentFeedback() {
             {filteredItems.map((fb) => (
               <tr key={fb.id}>
                 <td style={tdStyle}>
-                  <Link to={`/memories/${fb.memory_id}`}>{fb.memory_title}</Link>
+                  <Link to={`/memories/${fb.memory_id}`}>
+                    {fb.memory_title}
+                  </Link>
                 </td>
                 <td style={tdStyle}>{fb.tags.join(", ") || "-"}</td>
                 <td style={tdStyle}>
@@ -140,7 +144,9 @@ export function RecentFeedback() {
                   )}
                 </td>
                 <td style={tdStyle}>{fb.text ?? "-"}</td>
-                <td style={tdStyle}>{new Date(fb.created_at).toLocaleString()}</td>
+                <td style={tdStyle}>
+                  {new Date(fb.created_at).toLocaleString()}
+                </td>
               </tr>
             ))}
           </tbody>

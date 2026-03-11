@@ -45,7 +45,13 @@ export function RecentActivity() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <h1>Activity Log</h1>
         <span
           style={{
@@ -113,7 +119,9 @@ export function RecentActivity() {
                     {JSON.stringify(log.details, null, 0).slice(0, 100)}
                   </code>
                 </td>
-                <td style={tdStyle}>{new Date(log.created_at).toLocaleString()}</td>
+                <td style={tdStyle}>
+                  {new Date(log.created_at).toLocaleString()}
+                </td>
               </tr>
             ))}
           </tbody>

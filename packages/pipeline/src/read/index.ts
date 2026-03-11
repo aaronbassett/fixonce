@@ -98,8 +98,14 @@ export async function executeReadPipeline(
   }
 
   // Stage 3: Version filter
-  if (input.version_predicates && Object.keys(input.version_predicates).length > 0) {
-    candidates = filterByVersionPredicates(candidates, input.version_predicates);
+  if (
+    input.version_predicates &&
+    Object.keys(input.version_predicates).length > 0
+  ) {
+    candidates = filterByVersionPredicates(
+      candidates,
+      input.version_predicates,
+    );
   }
 
   const totalFound = candidates.length;
@@ -121,7 +127,9 @@ export async function executeReadPipeline(
 
   // Stage 6: Project verbosity on top results
   const results = await Promise.all(
-    topRanked.map((r) => projectByVerbosity(r.memory, r.relevancy_score, verbosity)),
+    topRanked.map((r) =>
+      projectByVerbosity(r.memory, r.relevancy_score, verbosity),
+    ),
   );
 
   // Build overflow entries with cache keys

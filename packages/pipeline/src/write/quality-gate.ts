@@ -55,5 +55,9 @@ export async function evaluateQuality(
 
   const userMessage = `Title: ${title}\nSummary: ${summary}\n\nContent:\n${content}`;
 
-  return llmCallJSON<QualityGateResult>("quality_gate", SYSTEM_PROMPT, userMessage);
+  return llmCallJSON<QualityGateResult>(
+    "quality_gate",
+    SYSTEM_PROMPT,
+    userMessage,
+  );
 }

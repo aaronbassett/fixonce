@@ -76,7 +76,9 @@ export function MemoryDetail() {
 
   async function handleDelete() {
     if (!id) return;
-    if (!window.confirm("Permanently delete this memory? This cannot be undone.")) {
+    if (
+      !window.confirm("Permanently delete this memory? This cannot be undone.")
+    ) {
       return;
     }
     try {
@@ -95,7 +97,9 @@ export function MemoryDetail() {
       await submitFeedbackApi({
         memory_id: id,
         text: feedbackText || undefined,
-        tags: feedbackTag ? [feedbackTag as Feedback["tags"][number]] : undefined,
+        tags: feedbackTag
+          ? [feedbackTag as Feedback["tags"][number]]
+          : undefined,
         suggested_action: feedbackAction
           ? (feedbackAction as "keep" | "remove" | "fix")
           : undefined,
@@ -106,7 +110,9 @@ export function MemoryDetail() {
       const fb = await getFeedbackApi(id);
       setFeedback(fb);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to submit feedback");
+      setError(
+        err instanceof Error ? err.message : "Failed to submit feedback",
+      );
     } finally {
       setSubmittingFeedback(false);
     }
@@ -119,7 +125,13 @@ export function MemoryDetail() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <h1>{editing ? "Edit Memory" : memory.title}</h1>
         <div style={{ display: "flex", gap: "0.5rem" }}>
           {!editing && (
@@ -184,7 +196,9 @@ export function MemoryDetail() {
               <span>Tags: {memory.tags.join(", ")}</span>
             )}
             {"language" in memory && <span>Language: {memory.language}</span>}
-            {"created_by" in memory && <span>Created by: {memory.created_by}</span>}
+            {"created_by" in memory && (
+              <span>Created by: {memory.created_by}</span>
+            )}
           </div>
           <h3>Summary</h3>
           <p>{memory.summary}</p>
@@ -192,7 +206,8 @@ export function MemoryDetail() {
           <pre style={preStyle}>{memory.content}</pre>
           {"confidence" in memory && (
             <p style={{ fontSize: "0.85rem", color: "#666" }}>
-              Confidence: {memory.confidence} | Surfaced: {memory.surfaced_count} times
+              Confidence: {memory.confidence} | Surfaced:{" "}
+              {memory.surfaced_count} times
             </p>
           )}
         </div>
@@ -203,7 +218,14 @@ export function MemoryDetail() {
       <h2>Feedback ({feedback.length})</h2>
 
       <form onSubmit={handleSubmitFeedback} style={{ marginBottom: "1.5rem" }}>
-        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap", alignItems: "flex-end" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+            alignItems: "flex-end",
+          }}
+        >
           <div style={fieldRow}>
             <label htmlFor="fbTag">Tag</label>
             <select
@@ -268,7 +290,9 @@ export function MemoryDetail() {
                 <td style={tdStyle}>{fb.tags.join(", ") || "-"}</td>
                 <td style={tdStyle}>{fb.suggested_action ?? "-"}</td>
                 <td style={tdStyle}>{fb.text ?? "-"}</td>
-                <td style={tdStyle}>{new Date(fb.created_at).toLocaleString()}</td>
+                <td style={tdStyle}>
+                  {new Date(fb.created_at).toLocaleString()}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,4 +1,11 @@
+<div align="center">
+  <img src="fixonce-mascot.png" alt="FixOnce — an elephant never forgets, and now neither does your agent" width="400">
+
 # FixOnce
+
+> An elephant never forgets — and now neither does your agent.
+
+</div>
 
 A shared memory layer for LLM coding agents. FixOnce captures corrections, gotchas, and discoveries from coding sessions and surfaces them contextually — turning every mistake into institutional memory.
 

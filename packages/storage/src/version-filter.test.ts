@@ -17,9 +17,9 @@ function mem(
 describe("filterByVersionPredicates", () => {
   it("returns all memories when detectedVersions is empty", () => {
     const memories = [
-      mem("a", { react: ["18"] }),
+      mem("a", { compact_compiler: ["0.14.0"] }),
       mem("b", null),
-      mem("c", { node: ["20", "22"] }),
+      mem("c", { wallet_sdk: ["1.0.0", "2.0.0"] }),
     ];
     const result = filterByVersionPredicates(memories, {});
     expect(result).toEqual(memories);
@@ -28,51 +28,57 @@ describe("filterByVersionPredicates", () => {
   it("includes memories with null version_predicates (universal)", () => {
     const memories = [
       mem("a", null),
-      mem("b", { react: ["18"] }),
+      mem("b", { compact_compiler: ["0.14.0"] }),
     ];
-    const detected: DetectedVersions = { react: "19" };
+    const detected: DetectedVersions = { compact_compiler: "0.15.0" };
     const result = filterByVersionPredicates(memories, detected);
     expect(result).toEqual([memories[0]]);
   });
 
   it("matches when detected version is in allowed list (OR within component)", () => {
     const memories = [
-      mem("a", { react: ["17", "18", "19"] }),
-      mem("b", { react: ["18"] }),
+      mem("a", { compact_compiler: ["0.13.0", "0.14.0", "0.15.0"] }),
+      mem("b", { compact_compiler: ["0.14.0"] }),
     ];
-    const detected: DetectedVersions = { react: "18" };
+    const detected: DetectedVersions = { compact_compiler: "0.14.0" };
     const result = filterByVersionPredicates(memories, detected);
     expect(result).toEqual(memories);
   });
 
   it("excludes when detected version is not in allowed list", () => {
     const memories = [
-      mem("a", { react: ["17"] }),
-      mem("b", { react: ["18", "19"] }),
+      mem("a", { compact_compiler: ["0.13.0"] }),
+      mem("b", { compact_compiler: ["0.14.0", "0.15.0"] }),
     ];
-    const detected: DetectedVersions = { react: "18" };
+    const detected: DetectedVersions = { compact_compiler: "0.14.0" };
     const result = filterByVersionPredicates(memories, detected);
     expect(result).toEqual([memories[1]]);
   });
 
   it("requires all constrained components to match (AND across components)", () => {
     const memories = [
-      mem("a", { react: ["18"], node: ["20"] }),
-      mem("b", { react: ["18"], node: ["22"] }),
+      mem("a", { compact_compiler: ["0.14.0"], wallet_sdk: ["1.0.0"] }),
+      mem("b", { compact_compiler: ["0.14.0"], wallet_sdk: ["2.0.0"] }),
     ];
-    const detected: DetectedVersions = { react: "18", node: "20" };
+    const detected: DetectedVersions = {
+      compact_compiler: "0.14.0",
+      wallet_sdk: "1.0.0",
+    };
     const result = filterByVersionPredicates(memories, detected);
     expect(result).toEqual([memories[0]]);
   });
 
   it("missing key in predicates means no constraint on that component", () => {
     const memories = [
-      mem("a", { react: ["18"] }),
-      mem("b", { react: ["18"], node: ["20"] }),
+      mem("a", { compact_compiler: ["0.14.0"] }),
+      mem("b", { compact_compiler: ["0.14.0"], wallet_sdk: ["1.0.0"] }),
     ];
-    const detected: DetectedVersions = { react: "18", node: "22" };
+    const detected: DetectedVersions = {
+      compact_compiler: "0.14.0",
+      wallet_sdk: "2.0.0",
+    };
     const result = filterByVersionPredicates(memories, detected);
-    // "a" has no node constraint so it passes; "b" requires node=20 so it fails
+    // "a" has no wallet_sdk constraint so it passes; "b" requires wallet_sdk=1.0.0 so it fails
     expect(result).toEqual([memories[0]]);
   });
 });

@@ -13,8 +13,8 @@ function makeMemory(overrides?: Partial<Memory>): Memory {
     title: "Test Memory",
     content: "Some content here",
     summary: "A short summary",
-    memory_type: "howto",
-    source_type: "cli",
+    memory_type: "guidance",
+    source_type: "discovery",
     created_by: "human",
     source_url: "https://example.com",
     tags: ["typescript", "testing"],
@@ -74,7 +74,7 @@ describe("projectSmall", () => {
       title: "Test Memory",
       content: "Some content here",
       summary: "A short summary",
-      memory_type: "howto",
+      memory_type: "guidance",
       relevancy_score: 0.87,
     });
   });
@@ -107,13 +107,13 @@ describe("projectMedium", () => {
       title: "Test Memory",
       content: "Some content here",
       summary: "A short summary",
-      memory_type: "howto",
+      memory_type: "guidance",
       relevancy_score: 0.73,
       tags: ["typescript", "testing"],
       language: "en",
       version_predicates: null,
       created_by: "human",
-      source_type: "cli",
+      source_type: "discovery",
       created_at: "2026-01-01T00:00:00Z",
       updated_at: "2026-01-10T00:00:00Z",
     });
@@ -135,11 +135,11 @@ describe("projectMedium", () => {
   it("preserves array and nullable fields from memory", () => {
     const memory = makeMemory({
       tags: [],
-      version_predicates: { node: ">=18" },
+      version_predicates: { node: [">=18"] },
     });
     const result = projectMedium(memory, 0.6);
 
     expect(result.tags).toEqual([]);
-    expect(result.version_predicates).toEqual({ node: ">=18" });
+    expect(result.version_predicates).toEqual({ node: [">=18"] });
   });
 });

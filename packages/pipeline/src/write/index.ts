@@ -210,10 +210,7 @@ export async function executeWritePipeline(
         );
       }
 
-      // Disable original memory
-      await updateMemory(dedupResult.target_memory_id, { enabled: false });
-
-      // Create new merged memory
+      // Create new merged memory FIRST to avoid data loss if creation fails
       const merged = await storeMemory({
         title: dedupResult.merged_title || input.title,
         content: dedupResult.merged_content || input.content,
@@ -230,6 +227,9 @@ export async function executeWritePipeline(
         project_workspace_path: input.project_workspace_path ?? null,
         confidence: input.confidence ?? 0.5,
       });
+
+      // Disable original only AFTER merged memory is safely created
+      await updateMemory(dedupResult.target_memory_id, { enabled: false });
 
       triggerAsyncEmbedding(
         merged.id,

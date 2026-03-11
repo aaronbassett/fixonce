@@ -12,18 +12,71 @@ import { join } from "node:path";
  * Maps npm package names to their corresponding component keys.
  */
 const PACKAGE_MAP: Record<string, ComponentKey> = {
-  "@aspect-build/midnight-js": "midnight_js",
-  "@aspect-build/compact-compiler": "compact_compiler",
-  "@aspect-build/compact-runtime": "compact_runtime",
-  "@aspect-build/wallet-sdk": "wallet_sdk",
-  "@aspect-build/dapp-connector-api": "dapp_connector_api",
-  "@aspect-build/compact-js": "compact_js",
-  "@aspect-build/onchain-runtime": "onchain_runtime",
-  "@aspect-build/ledger": "ledger",
-  "@aspect-build/midnight-indexer": "midnight_indexer",
-  "@aspect-build/proof-server": "proof_server",
-  "@aspect-build/midnight-node": "node",
-  "@aspect-build/midnight-network": "network",
+  // Compact
+  "@midnight-ntwrk/compact-runtime": "compact_runtime",
+  "@midnight-ntwrk/compact-js": "compact_js",
+  "@midnight-ntwrk/compact-js-command": "compact_js",
+  "@midnight-ntwrk/compact-js-node": "compact_js",
+
+  // Midnight JS
+  "@midnight-ntwrk/midnight-js-compact": "midnight_js",
+  "@midnight-ntwrk/midnight-js-contracts": "midnight_js",
+  "@midnight-ntwrk/midnight-js-types": "midnight_js",
+  "@midnight-ntwrk/midnight-js-utils": "midnight_js",
+  "@midnight-ntwrk/midnight-js-network-id": "midnight_js",
+  "@midnight-ntwrk/midnight-js-testing": "midnight_js",
+  "@midnight-ntwrk/midnight-js-logger-provider": "midnight_js",
+  "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "midnight_js",
+  "@midnight-ntwrk/midnight-js-node-zk-config-provider": "midnight_js",
+  "@midnight-ntwrk/midnight-js-level-private-state-provider": "midnight_js",
+  "@midnight-ntwrk/platform-js": "midnight_js",
+  "@midnight-ntwrk/testkit-js": "midnight_js",
+
+  // DApp Connector
+  "@midnight-ntwrk/dapp-connector-api": "dapp_connector_api",
+
+  // Ledger
+  "@midnight-ntwrk/ledger": "ledger",
+  "@midnight-ntwrk/ledger-v6": "ledger",
+  "@midnight-ntwrk/ledger-v7": "ledger",
+  "@midnight-ntwrk/ledger-v8": "ledger",
+
+  // Onchain Runtime
+  "@midnight-ntwrk/onchain-runtime": "onchain_runtime",
+  "@midnight-ntwrk/onchain-runtime-v1": "onchain_runtime",
+  "@midnight-ntwrk/onchain-runtime-v2": "onchain_runtime",
+  "@midnight-ntwrk/onchain-runtime-v3": "onchain_runtime",
+
+  // Wallet SDK
+  "@midnight-ntwrk/wallet": "wallet_sdk",
+  "@midnight-ntwrk/wallet-api": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-abstractions": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-address-format": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-capabilities": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-dust-wallet": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-facade": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-hd": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-runtime": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-shielded": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-unshielded-state": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-unshielded-wallet": "wallet_sdk",
+  "@midnight-ntwrk/wallet-sdk-utilities": "wallet_sdk",
+
+  // Indexer
+  "@midnight-ntwrk/midnight-js-indexer-public-data-provider":
+    "midnight_indexer",
+  "@midnight-ntwrk/wallet-sdk-indexer-client": "midnight_indexer",
+
+  // Proof Server
+  "@midnight-ntwrk/midnight-js-http-client-proof-provider": "proof_server",
+  "@midnight-ntwrk/wallet-sdk-prover-client": "proof_server",
+
+  // Node
+  "@midnight-ntwrk/wallet-sdk-node-client": "node",
+
+  // ZK primitives
+  "@midnight-ntwrk/zkir-v2": "compact_runtime",
+  "@midnight-ntwrk/zswap": "compact_runtime",
 };
 
 async function readJsonFile(

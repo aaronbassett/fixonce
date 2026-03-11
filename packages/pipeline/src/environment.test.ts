@@ -38,8 +38,8 @@ describe("detectEnvironment", () => {
       if (String(filePath).endsWith("package.json")) {
         return Promise.resolve(
           makePackageJson({
-            "@aspect-build/midnight-js": "^1.2.3",
-            "@aspect-build/wallet-sdk": "~2.0.0",
+            "@midnight-ntwrk/midnight-js-types": "^1.2.3",
+            "@midnight-ntwrk/wallet": "~2.0.0",
           }),
         );
       }
@@ -59,7 +59,7 @@ describe("detectEnvironment", () => {
       if (String(filePath).endsWith("package.json")) {
         return Promise.resolve(
           makePackageJson(undefined, {
-            "@aspect-build/compact-js": ">=3.0.0",
+            "@midnight-ntwrk/compact-js": ">=3.0.0",
           }),
         );
       }
@@ -86,12 +86,12 @@ describe("detectEnvironment", () => {
     expect(result.scan_sources.compact_compiler).toBe("compact.toml");
   });
 
-  it("package.json takes priority over compact.toml for same component", async () => {
+  it("detects from both package.json and compact.toml simultaneously", async () => {
     mockReadFile.mockImplementation((filePath) => {
       if (String(filePath).endsWith("package.json")) {
         return Promise.resolve(
           makePackageJson({
-            "@aspect-build/compact-compiler": "^0.15.0",
+            "@midnight-ntwrk/compact-runtime": "^0.15.0",
           }),
         );
       }
@@ -103,8 +103,10 @@ describe("detectEnvironment", () => {
 
     const result = await detectEnvironment({ project_path: "/fake" });
 
-    expect(result.detected_versions.compact_compiler).toBe("0.15.0");
-    expect(result.scan_sources.compact_compiler).toBe("package.json");
+    expect(result.detected_versions.compact_runtime).toBe("0.15.0");
+    expect(result.scan_sources.compact_runtime).toBe("package.json");
+    expect(result.detected_versions.compact_compiler).toBe("0.14.0");
+    expect(result.scan_sources.compact_compiler).toBe("compact.toml");
   });
 
   it("lists undetected components", async () => {
@@ -112,7 +114,7 @@ describe("detectEnvironment", () => {
       if (String(filePath).endsWith("package.json")) {
         return Promise.resolve(
           makePackageJson({
-            "@aspect-build/ledger": "1.0.0",
+            "@midnight-ntwrk/ledger": "1.0.0",
           }),
         );
       }

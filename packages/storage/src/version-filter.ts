@@ -1,3 +1,4 @@
+import semver from "semver";
 import type { DetectedVersions } from "@fixonce/shared";
 
 /**
@@ -23,7 +24,9 @@ export function filterByVersionPredicates<
       const allowedVersions = memory.version_predicates?.[key];
       if (!allowedVersions) return true;
       if (typeof detectedVersion !== "string") return true;
-      return allowedVersions.includes(detectedVersion);
+      const coerced = semver.coerce(detectedVersion);
+      if (!coerced) return true; // cannot evaluate, treat as unconstrained
+      return allowedVersions.some((range) => semver.satisfies(coerced, range));
     });
   });
 }

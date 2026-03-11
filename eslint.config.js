@@ -10,7 +10,8 @@ export default tseslint.config(
       "**/coverage/**",
       "**/.turbo/**",
       "shims/**",
-      "eslint.config.js",
+      "**/vite.config.ts",
+      "**/vitest.config.ts",
     ],
   },
   eslint.configs.recommended,
@@ -18,13 +19,7 @@ export default tseslint.config(
   {
     languageOptions: {
       parserOptions: {
-        projectService: {
-          allowDefaultProject: [
-            "*.config.ts",
-            "packages/*/vitest.config.ts",
-            "apps/*/vite.config.ts",
-          ],
-        },
+        projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
     },
@@ -46,16 +41,16 @@ export default tseslint.config(
       // Fires on union members that become redundant only because a
       // dependency's types are unresolved (resolved as `any`).
       "@typescript-eslint/no-redundant-type-constituents": "off",
-    },
-  },
-  // Config files parsed via allowDefaultProject lack strictNullChecks,
-  // so rules that depend on it must be disabled for those files.
-  {
-    files: ["**/*.config.ts"],
-    rules: {
-      "@typescript-eslint/no-unnecessary-boolean-literal-compare": "off",
-      "@typescript-eslint/no-unnecessary-condition": "off",
-      "@typescript-eslint/no-useless-default-assignment": "off",
+
+      "@typescript-eslint/no-non-null-assertion": "warn",
+      "@typescript-eslint/no-deprecated": "warn",
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "@typescript-eslint/require-await": "warn",
+      "@typescript-eslint/no-base-to-string": "warn",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "warn",
+      "@typescript-eslint/no-floating-promises": "warn",
+      "@typescript-eslint/no-misused-promises": "warn",
+      "@typescript-eslint/no-confusing-void-expression": "warn",
     },
   },
   // Storage and pipeline layers use defensive `??` on data from external

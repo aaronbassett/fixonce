@@ -17,8 +17,16 @@ const BASE = "/api";
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...(options?.headers as Record<string, string> | undefined),
   };
+  if (options?.headers) {
+    const incoming =
+      options.headers instanceof Headers
+        ? Object.fromEntries(options.headers.entries())
+        : Array.isArray(options.headers)
+          ? Object.fromEntries(options.headers)
+          : options.headers;
+    Object.assign(headers, incoming);
+  }
   const res = await fetch(url, {
     ...options,
     headers,
@@ -73,7 +81,7 @@ export async function updateMemoryApi(
 }
 
 export async function deleteMemoryApi(id: string): Promise<void> {
-  return request<undefined>(`${BASE}/memories/${id}`, {
+  await request<undefined>(`${BASE}/memories/${id}`, {
     method: "DELETE",
   });
 }

@@ -13,8 +13,8 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@fixonce/activity": "workspace:*",

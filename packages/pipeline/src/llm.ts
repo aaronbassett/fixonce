@@ -100,6 +100,7 @@ export async function llmCallJSON<T>(
     null,
     raw,
   ];
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- fallback array makes [1] always defined, but regex match type is wider
   const jsonStr = jsonMatch[1]?.trim() ?? raw.trim();
 
   try {

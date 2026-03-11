@@ -2,36 +2,60 @@ import { z } from "zod";
 
 // Enum schemas
 export const MemoryTypeSchema = z.enum(["guidance", "anti_pattern"]);
-export const SourceTypeSchema = z.enum(["correction", "discovery", "instruction"]);
+export const SourceTypeSchema = z.enum([
+  "correction",
+  "discovery",
+  "instruction",
+]);
 export const CreatedBySchema = z.enum(["ai", "human", "human_modified"]);
 export const CreatedByInputSchema = z.enum(["ai", "human"]);
 export const FeedbackTagSchema = z.enum([
-  "helpful", "not_helpful", "damaging", "accurate",
-  "somewhat_accurate", "somewhat_inaccurate", "inaccurate", "outdated",
+  "helpful",
+  "not_helpful",
+  "damaging",
+  "accurate",
+  "somewhat_accurate",
+  "somewhat_inaccurate",
+  "inaccurate",
+  "outdated",
 ]);
 export const SuggestedActionSchema = z.enum(["keep", "remove", "fix"]);
-export const OperationTypeSchema = z.enum(["query", "create", "update", "feedback", "detect"]);
+export const OperationTypeSchema = z.enum([
+  "query",
+  "create",
+  "update",
+  "feedback",
+  "detect",
+]);
 export const SearchTypeSchema = z.enum(["simple", "vector", "hybrid"]);
 export const VerbositySchema = z.enum(["small", "medium", "large"]);
 
 // Component key validation
 export const ComponentKeySchema = z.enum([
-  "network", "node", "compact_compiler", "compact_runtime", "compact_js",
-  "onchain_runtime", "ledger", "wallet_sdk", "midnight_js",
-  "dapp_connector_api", "midnight_indexer", "proof_server",
+  "network",
+  "node",
+  "compact_compiler",
+  "compact_runtime",
+  "compact_js",
+  "onchain_runtime",
+  "ledger",
+  "wallet_sdk",
+  "midnight_js",
+  "dapp_connector_api",
+  "midnight_indexer",
+  "proof_server",
 ]);
 
 // Version predicates schema
-export const VersionPredicatesSchema = z.record(
-  ComponentKeySchema,
-  z.array(z.string()),
-).optional().nullable();
+export const VersionPredicatesSchema = z
+  .record(ComponentKeySchema, z.array(z.string()))
+  .optional()
+  .nullable();
 
 // Detected versions schema
-export const DetectedVersionsSchema = z.record(
-  ComponentKeySchema,
-  z.string(),
-).optional();
+export const DetectedVersionsSchema = z
+  .record(ComponentKeySchema, z.string())
+  .optional();
 
 // Service input schemas
 export const CreateMemoryInputSchema = z.object({

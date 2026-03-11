@@ -35,14 +35,19 @@ export function registerUpdateCommand(program: Command): void {
           summary: opts.summary as string | undefined,
           memory_type: opts.memoryType as MemoryType | undefined,
           source_type: opts.sourceType as SourceType | undefined,
-          tags: opts.tags ? (opts.tags as string).split(",").map((t: string) => t.trim()) : undefined,
+          tags: opts.tags
+            ? (opts.tags as string).split(",").map((t: string) => t.trim())
+            : undefined,
           language: opts.language as string | undefined,
           source_url: opts.sourceUrl as string | undefined,
-          version_predicates: opts.version ? JSON.parse(opts.version as string) : undefined,
+          version_predicates: opts.version
+            ? JSON.parse(opts.version as string)
+            : undefined,
           project_name: opts.projectName as string | undefined,
           project_repo_url: opts.projectRepoUrl as string | undefined,
           confidence: opts.confidence as number | undefined,
-          enabled: opts.enabled !== undefined ? opts.enabled === "true" : undefined,
+          enabled:
+            opts.enabled !== undefined ? opts.enabled === "true" : undefined,
         });
 
         const isJson = program.opts()["json"] as boolean | undefined;

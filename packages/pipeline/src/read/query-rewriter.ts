@@ -12,11 +12,7 @@ Rules:
 
 export async function rewriteQuery(query: string): Promise<string> {
   try {
-    const rewritten = await llmCall(
-      "query_rewriting",
-      SYSTEM_PROMPT,
-      query,
-    );
+    const rewritten = await llmCall("query_rewriting", SYSTEM_PROMPT, query);
     return rewritten.trim();
   } catch (err) {
     throw rewriteError(

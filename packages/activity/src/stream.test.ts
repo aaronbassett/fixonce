@@ -1,33 +1,35 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ActivityEvent } from "./stream.js";
 
-async function loadStream() {
-  vi.resetModules();
-  return import("./stream.js");
-}
-
-function makeEvent(overrides?: Partial<ActivityEvent>): ActivityEvent {
+function makeEvent(overrides: Partial<ActivityEvent> = {}): ActivityEvent {
   return {
     id: "evt-1",
-    operation: "query",
+    operation: "create",
     memory_id: null,
     details: {},
-    created_at: "2024-01-01T00:00:00Z",
+    created_at: "2026-01-01T00:00:00Z",
     ...overrides,
   };
 }
 
-describe("subscribeToActivity", () => {
-  it("returns an unsubscribe function", async () => {
-    const { subscribeToActivity } = await loadStream();
-    const unsub = subscribeToActivity(() => {});
+describe("activity stream", () => {
+  let subscribeToActivity: (typeof import("./stream.js"))["subscribeToActivity"];
+  let emitActivity: (typeof import("./stream.js"))["emitActivity"];
+
+  beforeEach(async () => {
+    vi.resetModules();
+    const mod = await import("./stream.js");
+    subscribeToActivity = mod.subscribeToActivity;
+    emitActivity = mod.emitActivity;
+  });
+
+  it("subscribeToActivity returns an unsubscribe function", () => {
+    const listener = vi.fn();
+    const unsub = subscribeToActivity(listener);
     expect(typeof unsub).toBe("function");
   });
-});
 
-describe("emitActivity", () => {
-  it("calls subscribed listeners with the event", async () => {
-    const { subscribeToActivity, emitActivity } = await loadStream();
+  it("emitActivity calls subscribed listeners with the event", () => {
     const listener = vi.fn();
     subscribeToActivity(listener);
 
@@ -38,69 +40,68 @@ describe("emitActivity", () => {
     expect(listener).toHaveBeenCalledWith(event);
   });
 
-  it("calls multiple listeners", async () => {
-    const { subscribeToActivity, emitActivity } = await loadStream();
+  it("emitActivity calls multiple listeners", () => {
     const listener1 = vi.fn();
     const listener2 = vi.fn();
     subscribeToActivity(listener1);
     subscribeToActivity(listener2);
 
-    emitActivity(makeEvent());
+    const event = makeEvent();
+    emitActivity(event);
 
-    expect(listener1).toHaveBeenCalledOnce();
-    expect(listener2).toHaveBeenCalledOnce();
+    expect(listener1).toHaveBeenCalledWith(event);
+    expect(listener2).toHaveBeenCalledWith(event);
   });
 
-  it("does not call unsubscribed listeners", async () => {
-    const { subscribeToActivity, emitActivity } = await loadStream();
+  it("does not call unsubscribed listeners", () => {
     const listener = vi.fn();
     const unsub = subscribeToActivity(listener);
-
     unsub();
+
     emitActivity(makeEvent());
 
     expect(listener).not.toHaveBeenCalled();
   });
 
-  it("continues calling other listeners when one throws", async () => {
-    const { subscribeToActivity, emitActivity } = await loadStream();
+  it("continues calling other listeners when one throws", () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
     const badListener = vi.fn(() => {
-      throw new Error("listener failure");
+      throw new Error("boom");
     });
     const goodListener = vi.fn();
 
     subscribeToActivity(badListener);
     subscribeToActivity(goodListener);
 
-    emitActivity(makeEvent());
+    const event = makeEvent();
+    emitActivity(event);
 
-    expect(badListener).toHaveBeenCalledOnce();
-    expect(goodListener).toHaveBeenCalledOnce();
+    expect(badListener).toHaveBeenCalledWith(event);
+    expect(goodListener).toHaveBeenCalledWith(event);
     expect(errorSpy).toHaveBeenCalled();
-
     errorSpy.mockRestore();
   });
-});
 
-describe("integration: multi-step lifecycle", () => {
-  it("subscribe -> emit -> partial unsub -> emit -> verify", async () => {
-    const { subscribeToActivity, emitActivity } = await loadStream();
-    const listenerA = vi.fn();
-    const listenerB = vi.fn();
+  it("integration: subscribe -> emit -> partial unsub -> emit -> verify", () => {
+    const listener1 = vi.fn();
+    const listener2 = vi.fn();
 
-    const unsubA = subscribeToActivity(listenerA);
-    subscribeToActivity(listenerB);
+    const unsub1 = subscribeToActivity(listener1);
+    subscribeToActivity(listener2);
 
-    emitActivity(makeEvent({ id: "evt-1" }));
-    expect(listenerA).toHaveBeenCalledTimes(1);
-    expect(listenerB).toHaveBeenCalledTimes(1);
+    const event1 = makeEvent({ id: "evt-1" });
+    emitActivity(event1);
 
-    unsubA();
+    expect(listener1).toHaveBeenCalledWith(event1);
+    expect(listener2).toHaveBeenCalledWith(event1);
 
-    emitActivity(makeEvent({ id: "evt-2" }));
-    expect(listenerA).toHaveBeenCalledTimes(1);
-    expect(listenerB).toHaveBeenCalledTimes(2);
+    unsub1();
+
+    const event2 = makeEvent({ id: "evt-2" });
+    emitActivity(event2);
+
+    expect(listener1).toHaveBeenCalledTimes(1);
+    expect(listener2).toHaveBeenCalledTimes(2);
+    expect(listener2).toHaveBeenCalledWith(event2);
   });
 });

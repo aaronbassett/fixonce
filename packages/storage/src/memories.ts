@@ -116,27 +116,8 @@ export async function listEnabledMemories(options?: {
 export async function incrementSurfacedCount(ids: string[]): Promise<void> {
   if (ids.length === 0) return;
   const supabase = createSupabaseClient();
-  for (const id of ids) {
-    const { error } = await supabase.rpc("increment_surfaced_count", {
-      memory_id: id,
-    });
-    if (error) {
-      const { data, error: selectError } = await supabase
-        .from("memory")
-        .select("surfaced_count")
-        .eq("id", id)
-        .single();
-      if (selectError) throw selectError;
-      if (data) {
-        const { error: updateError } = await supabase
-          .from("memory")
-          .update({
-            surfaced_count: (Number(data.surfaced_count) || 0) + 1,
-            last_surfaced_at: new Date().toISOString(),
-          })
-          .eq("id", id);
-        if (updateError) throw updateError;
-      }
-    }
-  }
+  const { error } = await supabase.rpc("batch_increment_surfaced_count", {
+    memory_ids: ids,
+  });
+  if (error) throw error;
 }

@@ -34,14 +34,16 @@ describe("detectEnvironment", () => {
   });
 
   it("detects versions from package.json dependencies", async () => {
-    mockReadFile.mockImplementation(async (path) => {
-      if (String(path).endsWith("package.json")) {
-        return makePackageJson({
-          "@aspect-build/midnight-js": "^1.2.3",
-          "@aspect-build/wallet-sdk": "~2.0.0",
-        });
+    mockReadFile.mockImplementation((filePath) => {
+      if (String(filePath).endsWith("package.json")) {
+        return Promise.resolve(
+          makePackageJson({
+            "@aspect-build/midnight-js": "^1.2.3",
+            "@aspect-build/wallet-sdk": "~2.0.0",
+          }),
+        );
       }
-      throw new Error("ENOENT");
+      return Promise.reject(new Error("ENOENT"));
     });
 
     const result = await detectEnvironment({ project_path: "/fake" });
@@ -53,13 +55,15 @@ describe("detectEnvironment", () => {
   });
 
   it("detects versions from devDependencies", async () => {
-    mockReadFile.mockImplementation(async (path) => {
-      if (String(path).endsWith("package.json")) {
-        return makePackageJson(undefined, {
-          "@aspect-build/compact-js": ">=3.0.0",
-        });
+    mockReadFile.mockImplementation((filePath) => {
+      if (String(filePath).endsWith("package.json")) {
+        return Promise.resolve(
+          makePackageJson(undefined, {
+            "@aspect-build/compact-js": ">=3.0.0",
+          }),
+        );
       }
-      throw new Error("ENOENT");
+      return Promise.reject(new Error("ENOENT"));
     });
 
     const result = await detectEnvironment({ project_path: "/fake" });
@@ -69,11 +73,11 @@ describe("detectEnvironment", () => {
   });
 
   it("detects compiler version from compact.toml", async () => {
-    mockReadFile.mockImplementation(async (path) => {
-      if (String(path).endsWith("compact.toml")) {
-        return 'compiler_version = "0.14.0"';
+    mockReadFile.mockImplementation((filePath) => {
+      if (String(filePath).endsWith("compact.toml")) {
+        return Promise.resolve('compiler_version = "0.14.0"');
       }
-      throw new Error("ENOENT");
+      return Promise.reject(new Error("ENOENT"));
     });
 
     const result = await detectEnvironment({ project_path: "/fake" });
@@ -83,16 +87,18 @@ describe("detectEnvironment", () => {
   });
 
   it("package.json takes priority over compact.toml for same component", async () => {
-    mockReadFile.mockImplementation(async (path) => {
-      if (String(path).endsWith("package.json")) {
-        return makePackageJson({
-          "@aspect-build/compact-compiler": "^0.15.0",
-        });
+    mockReadFile.mockImplementation((filePath) => {
+      if (String(filePath).endsWith("package.json")) {
+        return Promise.resolve(
+          makePackageJson({
+            "@aspect-build/compact-compiler": "^0.15.0",
+          }),
+        );
       }
-      if (String(path).endsWith("compact.toml")) {
-        return 'compiler_version = "0.14.0"';
+      if (String(filePath).endsWith("compact.toml")) {
+        return Promise.resolve('compiler_version = "0.14.0"');
       }
-      throw new Error("ENOENT");
+      return Promise.reject(new Error("ENOENT"));
     });
 
     const result = await detectEnvironment({ project_path: "/fake" });
@@ -102,13 +108,15 @@ describe("detectEnvironment", () => {
   });
 
   it("lists undetected components", async () => {
-    mockReadFile.mockImplementation(async (path) => {
-      if (String(path).endsWith("package.json")) {
-        return makePackageJson({
-          "@aspect-build/ledger": "1.0.0",
-        });
+    mockReadFile.mockImplementation((filePath) => {
+      if (String(filePath).endsWith("package.json")) {
+        return Promise.resolve(
+          makePackageJson({
+            "@aspect-build/ledger": "1.0.0",
+          }),
+        );
       }
-      throw new Error("ENOENT");
+      return Promise.reject(new Error("ENOENT"));
     });
 
     const result = await detectEnvironment({ project_path: "/fake" });

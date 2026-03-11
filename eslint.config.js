@@ -58,5 +58,35 @@ export default tseslint.config(
       "@typescript-eslint/no-useless-default-assignment": "off",
     },
   },
+  // Storage and pipeline layers use defensive `??` on data from external
+  // sources (supabase, LLM responses) whose runtime nullability doesn't
+  // match resolved types.
+  {
+    files: ["packages/storage/src/**/*.ts", "packages/pipeline/src/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "@typescript-eslint/no-base-to-string": "off",
+    },
+  },
+  // Web app uses React patterns (async event handlers, void expressions
+  // in JSX callbacks) that conflict with strict TypeScript rules.
+  {
+    files: ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  // MCP SDK marks `tool()` as deprecated in favour of `registerTool()`.
+  // Migrating is out-of-scope; suppress until the SDK migration is done.
+  {
+    files: ["apps/mcp-server/src/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
   prettier,
 );

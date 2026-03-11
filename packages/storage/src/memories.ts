@@ -131,7 +131,7 @@ export async function incrementSurfacedCount(ids: string[]): Promise<void> {
         const { error: updateError } = await supabase
           .from("memory")
           .update({
-            surfaced_count: ((data.surfaced_count as number | null) ?? 0) + 1,
+            surfaced_count: (Number(data.surfaced_count) || 0) + 1,
             last_surfaced_at: new Date().toISOString(),
           })
           .eq("id", id);

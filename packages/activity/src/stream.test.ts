@@ -250,3 +250,83 @@ describe("subscribeToActivityRealtime", () => {
     errorSpy.mockRestore();
   });
 });
+
+describe("cross-source independence", () => {
+  let subscribeToActivity: (typeof import("./stream.js"))["subscribeToActivity"];
+  let emitActivity: (typeof import("./stream.js"))["emitActivity"];
+  let subscribeToActivityRealtime: (typeof import("./stream.js"))["subscribeToActivityRealtime"];
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    vi.resetModules();
+
+    mockRemoveChannel.mockClear();
+    mockSubscribe.mockClear().mockReturnThis();
+    mockOn.mockClear().mockReturnValue({ subscribe: mockSubscribe });
+    mockChannel.mockClear().mockReturnValue({ on: mockOn });
+
+    const mod = await import("./stream.js");
+    subscribeToActivity = mod.subscribeToActivity;
+    emitActivity = mod.emitActivity;
+    subscribeToActivityRealtime = mod.subscribeToActivityRealtime;
+  });
+
+  it("in-process listeners do NOT receive Realtime events", () => {
+    const inProcessListener = vi.fn();
+    subscribeToActivity(inProcessListener);
+
+    // Simulate a Realtime event arriving via the postgres_changes callback
+    const realtimeListener = vi.fn();
+    subscribeToActivityRealtime(realtimeListener);
+
+    const onCallback = mockOn.mock.calls[0]?.[2] as (payload: {
+      new: ActivityEvent;
+    }) => void;
+
+    const realtimeEvent = makeEvent({ id: "realtime-only" });
+    onCallback({ new: realtimeEvent });
+
+    // The Realtime listener receives it
+    expect(realtimeListener).toHaveBeenCalledWith(realtimeEvent);
+
+    // The in-process listener does NOT receive it
+    expect(inProcessListener).not.toHaveBeenCalled();
+  });
+
+  it("Realtime listeners do NOT receive in-process emitActivity events", () => {
+    const realtimeListener = vi.fn();
+    subscribeToActivityRealtime(realtimeListener);
+
+    const inProcessEvent = makeEvent({ id: "in-process-only" });
+    emitActivity(inProcessEvent);
+
+    // The Realtime listener is only called via the postgres_changes callback,
+    // not via emitActivity, so it should not have been called
+    expect(realtimeListener).not.toHaveBeenCalled();
+  });
+
+  it("both channels operate independently with their own listeners", () => {
+    const inProcessListener = vi.fn();
+    const realtimeListener = vi.fn();
+
+    subscribeToActivity(inProcessListener);
+    subscribeToActivityRealtime(realtimeListener);
+
+    // Emit an in-process event
+    const localEvent = makeEvent({ id: "local-evt" });
+    emitActivity(localEvent);
+
+    expect(inProcessListener).toHaveBeenCalledWith(localEvent);
+    expect(realtimeListener).not.toHaveBeenCalled();
+
+    // Simulate a Realtime event
+    const onCallback = mockOn.mock.calls[0]?.[2] as (payload: {
+      new: ActivityEvent;
+    }) => void;
+    const remoteEvent = makeEvent({ id: "remote-evt" });
+    onCallback({ new: remoteEvent });
+
+    expect(realtimeListener).toHaveBeenCalledWith(remoteEvent);
+    expect(inProcessListener).toHaveBeenCalledTimes(1); // Still only called once (from the local event)
+  });
+});

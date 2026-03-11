@@ -10,6 +10,7 @@ export interface SearchOptions {
   tags?: string[];
   created_after?: string;
   updated_after?: string;
+  project_name?: string;
 }
 
 export async function hybridSearch(
@@ -41,6 +42,8 @@ export async function hybridSearch(
     const { updated_after } = options;
     results = results.filter((m) => m.updated_at >= updated_after);
   }
+  if (options.project_name)
+    results = results.filter((m) => m.project_name === options.project_name);
 
   return results;
 }
@@ -63,6 +66,8 @@ export async function ftsSearch(
     query = query.gte("created_at", options.created_after);
   if (options.updated_after)
     query = query.gte("updated_at", options.updated_after);
+  if (options.project_name)
+    query = query.eq("project_name", options.project_name);
 
   const { data, error } = await query;
   if (error) throw error;
@@ -85,6 +90,8 @@ export async function vectorSearch(
     results = results.filter((m) => m.language === options.language);
   if (options.memory_type)
     results = results.filter((m) => m.memory_type === options.memory_type);
+  if (options.project_name)
+    results = results.filter((m) => m.project_name === options.project_name);
 
   return results;
 }
@@ -107,6 +114,8 @@ export async function metadataSearch(
     query = query.gte("created_at", options.created_after);
   if (options.updated_after)
     query = query.gte("updated_at", options.updated_after);
+  if (options.project_name)
+    query = query.eq("project_name", options.project_name);
 
   const { data, error } = await query;
   if (error) throw error;

@@ -1,8 +1,12 @@
 import type { OperationType } from "@fixonce/shared";
 import { appendActivity } from "@fixonce/storage";
 
-export { subscribeToActivity, emitActivity } from "./stream.js";
-export type { ActivityEvent } from "./stream.js";
+export {
+  subscribeToActivity,
+  subscribeToActivityRealtime,
+  emitActivity,
+} from "./stream.js";
+export type { ActivityEvent, ActivityListener } from "./stream.js";
 
 export async function logActivity(
   operation: OperationType,

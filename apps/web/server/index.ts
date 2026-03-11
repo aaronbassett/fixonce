@@ -1,6 +1,6 @@
 import express from "express";
 import { router } from "./routes.js";
-import { subscribeToActivity } from "@fixonce/activity";
+import { subscribeToActivityRealtime } from "@fixonce/activity";
 import type { ActivityEvent } from "@fixonce/activity";
 
 const app = express();
@@ -13,7 +13,7 @@ app.get("/api/activity/stream", (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  const unsubscribe = subscribeToActivity((event: ActivityEvent) => {
+  const unsubscribe = subscribeToActivityRealtime((event: ActivityEvent) => {
     res.write(`data: ${JSON.stringify(event)}\n\n`);
   });
 

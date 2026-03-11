@@ -149,6 +149,7 @@ export async function updateMemory(
   }
 
   const contentChanged =
+    (updates.title !== undefined && updates.title !== existing.title) ||
     (updates.content !== undefined && updates.content !== existing.content) ||
     (updates.summary !== undefined && updates.summary !== existing.summary);
 

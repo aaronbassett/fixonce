@@ -24,13 +24,24 @@ export default tseslint.config(
       },
     },
     rules: {
-      "@typescript-eslint/no-unsafe-argument": "off",
+      // Disabled: these fire on every usage of dependencies whose types
+      // cannot be resolved by the project-service (supabase-js, MCP SDK,
+      // zod, etc.).  They produce thousands of false-positives and add no
+      // value until those libraries ship compatible type declarations.
       "@typescript-eslint/no-unsafe-assignment": "off",
       "@typescript-eslint/no-unsafe-call": "off",
       "@typescript-eslint/no-unsafe-member-access": "off",
       "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+
+      // Template literals commonly interpolate non-string values (errors,
+      // numbers, etc.) throughout the codebase – this is intentional.
       "@typescript-eslint/restrict-template-expressions": "off",
+
+      // Fires on union members that become redundant only because a
+      // dependency's types are unresolved (resolved as `any`).
       "@typescript-eslint/no-redundant-type-constituents": "off",
+
       "@typescript-eslint/no-non-null-assertion": "warn",
       "@typescript-eslint/no-deprecated": "warn",
       "@typescript-eslint/no-unnecessary-condition": "warn",
@@ -40,6 +51,36 @@ export default tseslint.config(
       "@typescript-eslint/no-floating-promises": "warn",
       "@typescript-eslint/no-misused-promises": "warn",
       "@typescript-eslint/no-confusing-void-expression": "warn",
+    },
+  },
+  // Storage and pipeline layers use defensive `??` on data from external
+  // sources (supabase, LLM responses) whose runtime nullability doesn't
+  // match resolved types.
+  {
+    files: ["packages/storage/src/**/*.ts", "packages/pipeline/src/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "off",
+      "@typescript-eslint/use-unknown-in-catch-callback-variable": "off",
+      "@typescript-eslint/no-base-to-string": "off",
+    },
+  },
+  // Web app uses React patterns (async event handlers, void expressions
+  // in JSX callbacks) that conflict with strict TypeScript rules.
+  {
+    files: ["apps/web/src/**/*.ts", "apps/web/src/**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-misused-promises": "off",
+      "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-confusing-void-expression": "off",
+      "@typescript-eslint/no-deprecated": "off",
+    },
+  },
+  // MCP SDK marks `tool()` as deprecated in favour of `registerTool()`.
+  // Migrating is out-of-scope; suppress until the SDK migration is done.
+  {
+    files: ["apps/mcp-server/src/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-deprecated": "off",
     },
   },
   prettier,

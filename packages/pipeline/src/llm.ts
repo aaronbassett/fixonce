@@ -100,7 +100,7 @@ export async function llmCallJSON<T>(
     null,
     raw,
   ];
-  const jsonStr = jsonMatch[1]?.trim() ?? raw.trim(); // eslint-disable-line @typescript-eslint/no-unnecessary-condition -- regex match may be null at index 1
+  const jsonStr = jsonMatch[1]?.trim() ?? raw.trim();
 
   try {
     return JSON.parse(jsonStr) as T;

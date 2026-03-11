@@ -13,8 +13,8 @@ function makeEvent(overrides: Partial<ActivityEvent> = {}): ActivityEvent {
 }
 
 describe("activity stream", () => {
-  let subscribeToActivity: typeof import("./stream.js")["subscribeToActivity"];
-  let emitActivity: typeof import("./stream.js")["emitActivity"];
+  let subscribeToActivity: (typeof import("./stream.js"))["subscribeToActivity"];
+  let emitActivity: (typeof import("./stream.js"))["emitActivity"];
 
   beforeEach(async () => {
     vi.resetModules();

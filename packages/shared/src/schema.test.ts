@@ -378,9 +378,7 @@ describe("ExpandCacheKeyInputSchema", () => {
   });
 
   it("rejects empty cache_key", () => {
-    expect(() =>
-      ExpandCacheKeyInputSchema.parse({ cache_key: "" }),
-    ).toThrow();
+    expect(() => ExpandCacheKeyInputSchema.parse({ cache_key: "" })).toThrow();
   });
 });
 

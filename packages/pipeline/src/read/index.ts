@@ -28,6 +28,7 @@ async function searchByType(
     tags?: string[];
     created_after?: string;
     updated_after?: string;
+    project_name?: string;
   },
 ): Promise<Memory[]> {
   const searchOpts = {
@@ -37,6 +38,7 @@ async function searchByType(
     tags: options.tags,
     created_after: options.created_after,
     updated_after: options.updated_after,
+    project_name: options.project_name,
   };
 
   if (type === "simple") {
@@ -88,6 +90,7 @@ export async function executeReadPipeline(
       tags: input.tags,
       created_after: input.created_after,
       updated_after: input.updated_after,
+      project_name: input.project_name,
     });
   } catch (err) {
     if (err instanceof Error && "stage" in err) throw err;
@@ -122,8 +125,24 @@ export async function executeReadPipeline(
   }
 
   // Stage 5: Budget — split into top results and overflow
-  const topRanked = ranked.slice(0, maxResults);
-  const overflowRanked = ranked.slice(maxResults);
+  let budgetLimit = maxResults;
+  if (input.max_tokens) {
+    let tokenCount = 0;
+    let tokenLimit = 0;
+    for (let i = 0; i < ranked.length; i++) {
+      const { embedding, ...memoryWithoutEmbedding } = ranked[i].memory;
+      void embedding;
+      const estimated = Math.ceil(
+        JSON.stringify(memoryWithoutEmbedding).length / 4,
+      );
+      tokenCount += estimated;
+      if (tokenCount > input.max_tokens) break;
+      tokenLimit = i + 1;
+    }
+    budgetLimit = Math.min(budgetLimit, tokenLimit);
+  }
+  const topRanked = ranked.slice(0, budgetLimit);
+  const overflowRanked = ranked.slice(budgetLimit);
 
   // Stage 6: Project verbosity on top results
   const results = await Promise.all(

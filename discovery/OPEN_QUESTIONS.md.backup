@@ -1,0 +1,48 @@
+# Open Questions: fixonce-v2
+
+## 🔴 Blocking
+- **Q1**: What tables does the database need beyond what v1 had (memory, feedback, activity_log)? Do we need tables for: users, cli_keys, secrets, memory_lineage, contradiction_courts?
+  - *Story*: Story 2
+  - *Blocking*: Cannot design schema without knowing full table set
+
+
+### Cross-Cutting / Affects Graduated Stories
+[Questions that may trigger revisions to graduated stories]
+
+### Problem Space (Phase 1)
+[Questions about problem domain that may surface new stories]
+
+---
+
+## 🟡 Clarifying
+[Questions that help but don't block progress]
+- **Q2**: Should edge functions use Supabase's built-in auth helpers (supabase.auth.getUser()) or implement custom auth verification?
+  - *Story*: Story 2
+
+
+
+---
+
+## 🔵 Research Pending
+[Questions requiring investigation]
+
+---
+
+## 🟠 Watching (May Affect Graduated)
+*Questions that could trigger revisions:*
+[Track questions that may require changes to completed stories]
+
+---
+
+## Question Log Summary
+
+**Total Questions**: 0
+**Open**: 0
+**Resolved**: 0
+
+
+<!-- Resolved: Q1 - Single monorepo with Cargo + pnpm workspaces (D2) -->
+
+<!-- Resolved: Q2 - Lefthook (D3) -->
+
+<!-- Resolved: Q3 - GitHub Actions (D4) -->

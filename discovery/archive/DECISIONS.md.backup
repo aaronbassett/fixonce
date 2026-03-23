@@ -1,0 +1,337 @@
+# Decision Log: fixonce-v2
+
+*Chronological record of all decisions made during discovery.*
+
+---
+
+[Decision entries will be added as decisions are made]
+
+## D1: Developer Tooling as Story 1 — 2026-03-23
+
+**Context**: v1 was missing automated code quality checks. User explicitly requested linting, formatting, typechecking, git hooks, and CI as the first story to establish before any feature work begins.
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: Add Developer Tooling & CI as Story 1, renumber all other stories +1
+
+**Rationale**: Code quality infrastructure must be established before feature development to prevent the same quality gaps that plagued v1
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: All stories
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D2: Single monorepo with Cargo + pnpm workspaces — 2026-03-23
+
+**Context**: Need to decide repo structure for multi-language project
+
+**Question**: What is the monorepo structure?
+
+**Options Considered**:
+1. Single monorepo (Cargo workspace + pnpm workspace); 2. Two repos (Rust + TypeScript); 3. Three repos (CLI, web, backend)
+
+**Decision**: Single monorepo with Cargo workspace for Rust CLI and pnpm workspace for TypeScript (web, edge functions, shared types)
+
+**Rationale**: Single repo keeps all code together, simplifies CI, enables shared tooling config, and matches the team's workflow (solo + agents)
+
+**Implications**:
+CI must handle both Rust and TypeScript builds. Lefthook can run language-specific hooks. Need careful .gitignore for both ecosystems.
+
+**Stories Affected**: Story 1
+
+**Related Questions**: Q1
+
+---
+
+## D3: Lefthook for git hooks — 2026-03-23
+
+**Context**: Need git hook tool for multi-language (Rust + TypeScript) repo
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+1. Lefthook (fast, language-agnostic); 2. Husky (JS ecosystem); 3. Shell scripts
+
+**Decision**: Lefthook
+
+**Rationale**: Language-agnostic, parallel execution, YAML config, better fit for Rust + TypeScript than Husky
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 1
+
+**Related Questions**: Q2
+
+---
+
+## D4: GitHub Actions for CI — 2026-03-23
+
+**Context**: Need CI platform for automated quality checks
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: GitHub Actions
+
+**Rationale**: Good caching support for both Rust and Node, matrix builds, free for public repos, familiar from v1
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 1
+
+**Related Questions**: Q3
+
+---
+
+## D5: Deno native tooling for edge functions — 2026-03-23
+
+**Context**: Edge functions run on Deno (Supabase). Need to decide whether to use ESLint/Prettier or Deno's native tools.
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+1. Deno native (deno lint, deno fmt, deno check); 2. Shared ESLint config with Deno overrides
+
+**Decision**: Deno native tooling for edge functions; ESLint + Prettier for web dashboard
+
+**Rationale**: Deno tools are official (Deno team maintained), fast (Rust-based), zero-config, and designed for the runtime. ESLint doesn't understand Deno's import resolution natively.
+
+**Implications**:
+Two lint/format configs in the repo: one for Node/React (ESLint+Prettier), one for Deno (native). Lefthook and CI must run the right tool for each directory.
+
+**Stories Affected**: Story 1
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D6: Database schema: 7 tables — 2026-03-23
+
+**Context**: Need to define full table set for v2
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: 7 tables: memory, feedback, activity_log, secrets, cli_keys, memory_lineage, contradiction_pairs
+
+**Rationale**: Covers all v2 features: rich metadata, dynamics, lineage, contradictions, secrets, CLI auth. Each entity is distinct enough to warrant its own table.
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 2, Story 4, Story 5, Story 7-11
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D7: Supabase auth for all consumers — 2026-03-23
+
+**Context**: CLI and web dashboard need different auth flows but should use the same auth system
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+1. Supabase auth for all (CLI gets JWT via public-key exchange); 2. Hybrid (Supabase for web, custom for CLI); 3. Custom for all
+
+**Decision**: Supabase auth for all. CLI authenticates with public key via edge function that issues a JWT. Web uses GitHub OAuth JWT. Both use supabase.auth.getUser() for verification.
+
+**Rationale**: Single auth system simplifies RLS policies and edge function verification. CLI just needs a JWT exchange endpoint.
+
+**Implications**:
+Need a custom edge function for CLI key-to-JWT exchange. RLS policies can use auth.uid() universally.
+
+**Stories Affected**: Story 2, Story 3
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D8: voyage-code-3 embedding dimensions: 1024 — 2026-03-23
+
+**Context**: Need to determine pgvector column size for memory embeddings
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: vector(1024) column for embeddings, matching voyage-code-3 output dimensions
+
+**Rationale**: [Rationale not provided]
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 2, Story 5
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D9: Search endpoint with configurable search_type — 2026-03-23
+
+**Context**: Need to decide where hybrid search fusion logic lives while maintaining constitution principle that all DB ops go through edge functions
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+1. Postgres RPC for all search (single trip); 2. Edge function composition (two trips, flexible); 3. Configurable search_type parameter
+
+**Decision**: Single search edge function with search_type parameter (hybrid|fts|vector, default hybrid). Hybrid uses Postgres RPC function for single-trip fusion. FTS and vector are separate queries available for consumers who want custom ranking.
+
+**Rationale**: Defaults to most performant path (Postgres RPC hybrid). Power users can call FTS/vector independently and compose their own ranking. All paths go through edge functions per constitution.
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 2, Story 7
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D10: Supabase CLI for migrations — 2026-03-23
+
+**Context**: Need migration management approach for v2
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: Supabase CLI migrations (supabase migration new / supabase db push)
+
+**Rationale**: Official tooling, tracks migration state automatically, integrates with Supabase project
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 2
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D11: GitHub org membership: check on login + periodic re-verification — 2026-03-23
+
+**Context**: Need to restrict access to specific GitHub orgs/teams and ensure continued membership
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+1. Check at login only; 2. Check at login + periodic re-verification; 3. Client-side check only
+
+**Decision**: Check at login via post-login edge function + periodic re-verification (e.g., daily cron or on each authenticated request)
+
+**Rationale**: Users who leave the org must lose access. Login-only check would leave stale access until session expires.
+
+**Implications**:
+Need a mechanism for periodic re-checks: either a cron job that revokes access, or an on-request check that validates org membership with a cached TTL.
+
+**Stories Affected**: Story 3
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D12: CLI auth: challenge-response with short-lived JWT — 2026-03-23
+
+**Context**: CLI needs to authenticate without browser-based OAuth flow
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: Challenge-response: CLI requests nonce from edge function, signs with private key, edge function verifies against registered public key, issues short-lived JWT. CLI uses JWT for subsequent requests.
+
+**Rationale**: Secure, stateless, integrates with Supabase auth system. Short-lived JWT limits exposure if compromised.
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 3
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D13: Org re-verification: 1hr cache TTL + twice-daily cron sweep — 2026-03-23
+
+**Context**: Need mechanism for periodic org membership checks
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: Both: on-request check with 1-hour cached TTL + Supabase cron job running twice daily to sweep and revoke access for non-members
+
+**Rationale**: 1hr TTL catches departures quickly without hitting GitHub API on every request. Twice-daily cron ensures no user falls through cracks if they somehow bypass on-request checks.
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 3
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D14: CLI JWT lifetime: 8 hours — 2026-03-23
+
+**Context**: Need to balance security with convenience for CLI auth
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+[Options not provided]
+
+**Decision**: CLI JWTs expire after 8 hours — roughly one work day
+
+**Rationale**: Long enough that developers authenticate once per day. Short enough to limit exposure. Challenge-response re-auth is fast so 8hr is not burdensome.
+
+**Implications**:
+[Implications not provided]
+
+**Stories Affected**: Story 3
+
+**Related Questions**: [Questions not specified]
+
+---
+
+## D15: Edge function encryption for secrets (AES-256-GCM) — 2026-03-23
+
+**Context**: Need encryption approach that protects secrets even if RLS is misconfigured and DB is publicly readable
+
+**Question**: [Question not provided]
+
+**Options Considered**:
+1. pgsodium (Postgres-level, keys in DB); 2. Edge function encryption (key as env secret, outside DB); 3. Both layers
+
+**Decision**: Edge function encryption using Web Crypto API (AES-256-GCM). Encryption master key stored as Supabase environment secret, never in the database. Database stores only ciphertext.
+
+**Rationale**: Threat model: RLS misconfiguration exposes DB. With pgsodium, decryption keys are also in DB (Vault). Edge function encryption provides true layer separation — DB compromise alone cannot expose plaintext secrets.
+
+**Implications**:
+Secrets endpoint must decrypt in edge function code. Master key rotation requires re-encrypting all secrets. Must never log decrypted values.
+
+**Stories Affected**: Story 4
+
+**Related Questions**: [Questions not specified]
+
+---

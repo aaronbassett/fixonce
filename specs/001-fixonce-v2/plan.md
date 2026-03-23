@@ -574,11 +574,16 @@ fixonce/
 
 These are tracked but NOT blocking implementation. Reasonable defaults are used; calibration happens post-launch with real usage data.
 
+**Decided** (implemented with configurable defaults):
+- Contradiction court quorum: **3 tiebreaker votes from distinct users/agents** (configurable). Implemented in Phase 6.
+- Signature cache: **In-memory HashMap, LRU eviction at 50-cap, refresh on cache miss. Cosine similarity.** Implemented in Phase 6.
+- Harvesting confidence threshold: **0.7 to propose** (below = silently discarded). Implemented in Phase 7.
+- Read pipeline degraded mode: **When Claude is unavailable, return raw search results ranked by decay_score, marked "unranked — Claude unavailable" in output.** No LLM inference in degraded mode. Implemented in Phase 5.
+
+**Open for calibration post-launch**:
+
 | Question | Default | Revisit When |
 |----------|---------|-------------|
 | Decay half-life per memory type | 30 days for all types | After 90 days of usage data |
-| Contradiction court quorum | 3 tiebreaker votes | After 50+ contradiction resolutions |
-| Signature cache refresh strategy | In-memory HashMap, LRU eviction at 50-cap, refresh on cache miss. Cosine similarity of session profile vector to memory signature vectors. | After measuring session cache hit rates |
-| Harvesting signal-to-noise threshold | Confidence > 0.7 to propose | After 100+ analyzed sessions |
 | Multi-tenant isolation model | Single shared store (v1 scope) | When ecosystem developers onboard |
 | Secret rotation model | Manual rotation via admin | When automated rotation is needed |

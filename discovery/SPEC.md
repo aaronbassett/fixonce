@@ -4,6 +4,7 @@
 **Created**: 2026-03-23
 **Last Updated**: 2026-03-23
 **Status**: Complete
+**Scope**: 16 user stories (all P1), 73 functional requirements, 43 edge cases, 24 success criteria
 **Discovery**: See `discovery/` folder for full context
 
 ---
@@ -187,6 +188,12 @@ FixOnce v2 is a clean-slate rewrite delivering a living memory system where memo
 
 7. **Given** a memory is created without version metadata, **When** the edge function validates the input, **Then** it accepts the memory — version metadata is optional but encouraged. The CLI SHOULD prompt for version info when possible.
 
+**Feedback vs. Update Interaction**: Submitting feedback (helpful/outdated/damaging) updates `reinforcement_score` and `decay_score` only — it never modifies memory content, title, summary, or embedding. Feedback is a separate entity in the `feedback` table. Only explicit `fixonce update` operations change content and trigger re-embedding.
+
+**Embedding Retry Policy**: When VoyageAI is unavailable, the CLI retries with exponential backoff (1s, 2s, 4s — 3 attempts). On final failure, the memory is stored with `embedding_status = 'pending'` and a null embedding. Pending memories are excluded from vector search results but included in FTS results with a "pending embedding" indicator. A background retry runs via `fixonce embed-retry` command (or TUI action) which re-attempts embedding for all pending memories. After 5 total failed attempts across retries, status changes to `embedding_status = 'failed'` and the memory remains FTS-only until manually re-embedded.
+
+**Status Field Ownership**: `embedding_status` and `pipeline_status` are always set by the CLI and sent to the edge function in the create/update request. The edge function validates the values against the allowed enums but does not override them. The CLI is the authority on whether embedding and pipeline stages completed successfully.
+
 **Edge Cases**: See EC-23 through EC-27 below.
 
 ---
@@ -326,9 +333,10 @@ where:
 - "damaging" feedback: `reinforcement_score -= 10` (sharp penalty)
 
 **Event-driven decay acceleration**:
-- When triggered (e.g., new SDK version), multiply `effective_λ` by an acceleration factor (default 3x)
+- When triggered, multiply `effective_λ` by an acceleration factor (default 3x)
 - Acceleration lasts until the next decay recalculation
 - Formula: `accelerated_λ = effective_λ * event_boost` (default `event_boost = 3.0`, configurable)
+- **Trigger mechanisms**: (1) Manual CLI command: `fixonce decay-trigger --component compact_compiler --version 0.15` — admin runs this when a new version is released. (2) Opportunistic detection: when `fixonce detect` finds a project using a newer version than any memory references, it triggers decay for memories pinned to older versions of that component.
 
 **Soft-deletion threshold**: `decay_score < 0.1` (configurable). Memories below this are soft-deleted.
 
@@ -372,11 +380,15 @@ where:
 
 **Context**: Anti-memories are first-class memory artifacts with memory_type="anti_pattern". They have their own embeddings, version constraints, and decay behavior. They are surfaced proactively via Claude Code hooks (Story 16) when the system detects an agent is headed toward a known mistake. Intervention is warn-only (CONSTITUTION).
 
+**Version Constraint Format**: Anti-memory version constraints use semver range syntax applied to Midnight component fields. Examples: `compact_compiler >= 0.15.0`, `midnight_js ^0.8.0`, `compact_pragma < 0.14.0`. Multiple constraints are AND-joined: `compact_compiler >= 0.15.0 AND midnight_js < 1.0.0`. Matching uses the `semver` crate for range comparison against the detected or queried version.
+
+**Surfacing Priority**: When an anti-memory's version constraints match the query context, it is promoted to the top 3 result slots (before regular memories). If more than 3 anti-memories match, they are ranked among themselves by relevance_score. Regular memories fill the remaining slots after anti-memories. Anti-memories are visually distinguished in all output formats (text: "[WARNING]" prefix, JSON: `"is_anti_memory": true`, TOON: warning marker).
+
 **Acceptance Scenarios**:
 
-1. **Given** a memory is created with memory_type="anti_pattern", **When** it is stored, **Then** it includes: the anti-pattern description (what NOT to do), the reason (why it's harmful), the alternative (what to do instead), and version constraints (which versions this applies to)
+1. **Given** a memory is created with memory_type="anti_pattern", **When** it is stored, **Then** it includes: the anti-pattern description (what NOT to do), the reason (why it's harmful), the alternative (what to do instead), and version constraints in semver range syntax (which versions this applies to)
 
-2. **Given** an anti-memory about "never use Map.from() with Compact 0.15+", **When** an agent queries about Compact map operations with version >= 0.15, **Then** the anti-memory is surfaced with higher priority than regular memories about maps
+2. **Given** an anti-memory with constraint `compact_compiler >= 0.15.0` about "never use Map.from()", **When** an agent queries about Compact map operations with detected version 0.15.2, **Then** the anti-memory is promoted to the top 3 result slots, ahead of regular memories about maps
 
 3. **Given** multiple "outdated" feedback ratings on a regular memory, **When** the write pipeline detects this pattern, **Then** it proposes creating an anti-memory that captures the negative lesson — requiring admin approval before storage
 
@@ -645,7 +657,7 @@ where:
 | Hook | Event | Action |
 |------|-------|--------|
 | SessionStart | Session begins | Run `fixonce detect` for environment, pre-populate hot cache (Story 12), surface critical memories (high reinforcement, matching version) |
-| UserPromptSubmit | User sends prompt | Quick-search for relevant memories based on prompt text — lightweight, no full pipeline |
+| UserPromptSubmit | User sends prompt | Quick-search for relevant memories based on prompt text — lightweight (no LLM inference, hybrid search only, <500ms) |
 | PreToolUse | Before Write/Edit | Check if the proposed file content matches any anti-memory patterns. If match score > 0.7, surface warning. |
 | PostToolUse | After Write/Edit | Check if the written content matches any anti-memory patterns. If match score > 0.5, surface advisory. |
 | Stop | Session ends | Surface any remaining critical reminders for the project context |
@@ -733,7 +745,7 @@ where:
 | FR-009 | The `memory` table MUST have an HNSW index on the embedding column for vector similarity search | Story 2 | High |
 | FR-010 | The `memory` table MUST have a GIN index on the tsvector column for full-text search | Story 2 | High |
 | FR-011 | Every edge function MUST verify authentication via `supabase.auth.getUser()` before any database operation | Story 2 | High |
-| FR-012 | Every edge function MUST validate input against a Zod schema before processing | Story 2 | High |
+| FR-012 | Every edge function MUST validate input against a Zod schema before processing. Each edge function MUST have a schema file (`supabase/functions/{name}/schema.ts`) defining request and response shapes, designed before implementation per Constitution §IX. | Story 2 | High |
 | FR-013 | Every mutating edge function MUST log the operation to `activity_log` with: user_id, action, entity_type, entity_id, metadata, timestamp | Story 2 | High |
 | FR-014 | The search edge function MUST accept a `search_type` parameter (hybrid\|fts\|vector) defaulting to hybrid | Story 2 | High |
 | FR-015 | The hybrid search Postgres RPC function MUST combine FTS ts_rank and vector cosine similarity using Reciprocal Rank Fusion | Story 2 | High |
@@ -758,7 +770,7 @@ where:
 | FR-034 | Secrets MUST be retrieved one at a time per request — no bulk decryption endpoint | Story 4 | High |
 | FR-035 | Memory CRUD edge functions MUST validate all input against Zod schemas including memory_type enum, source_type enum, and version metadata format | Story 5 | High |
 | FR-036 | Memory creation MUST generate a voyage-code-3 embedding (1024 dims) for the content via VoyageAI API | Story 5 | High |
-| FR-037 | Memory deletion MUST be soft-delete (mark as deleted, preserve in DB) | Story 5 | High |
+| FR-037 | Memory deletion MUST be soft-delete (mark as deleted, preserve in DB). Lineage and feedback records MUST remain queryable after soft-deletion. | Story 5, Story 11 | High |
 | FR-038 | The raw embedding vector MUST NOT be returned in standard get/query responses — only via explicit flag | Story 5 | High |
 | FR-039 | The write pipeline MUST scan for credentials, API keys, and PII before any other processing | Story 6 | High |
 | FR-040 | The write pipeline MUST use `claude -p` for quality gating and dedup — Claude is the sole inference engine | Story 6 | High |
@@ -793,7 +805,7 @@ where:
 | FR-069 | All Claude Code hooks MUST be advisory only — warn, never block agent actions | Story 16 | High |
 | FR-070 | SessionStart hook MUST run environment detection and populate the hot cache | Story 16 | High |
 | FR-071 | PreToolUse hook MUST check proposed content against anti-memory patterns and surface warnings for matches above 0.7 score | Story 16 | High |
-| FR-072 | All hooks MUST complete within 3 seconds or timeout gracefully | Story 16 | High |
+| FR-072 | All hooks MUST complete within 3 seconds (hard cutoff) or timeout gracefully. On timeout, return immediately with no results. Log the timeout (hook name, duration) for monitoring. Partial results are NOT returned. | Story 16 | High |
 | FR-073 | Hooks MUST never prompt for authentication or block on missing CLI | Story 16 | High |
 
 ### Key Entities
@@ -826,14 +838,14 @@ where:
 | SC-011 | Memory CRUD is reliable | Create/read/update/delete operations succeed on first attempt 99%+ of the time | Story 5 |
 | SC-012 | Write pipeline catches duplicates | Less than 5% of stored memories are near-duplicates of existing memories | Story 6 |
 | SC-013 | Write pipeline blocks credentials | 100% of memories containing API keys, private keys, or passwords are rejected before storage | Story 6 |
-| SC-014 | Read pipeline returns relevant results | Top-3 results include the correct answer for 80%+ of well-formed queries (measured by agent feedback) | Story 7 |
+| SC-014 | Read pipeline returns relevant results | Top-3 results include the correct answer for 80%+ of queries that are syntactically valid, >5 characters, and reference a known Midnight component or concept (measured by agent feedback) | Story 7 |
 | SC-015 | Memory dynamics converge | Over 90 days of use, average memory quality (measured by positive feedback ratio) improves monotonically | Story 8 |
 | SC-016 | Anti-memories prevent mistakes | Agent feedback "this warning saved me" ratio exceeds 60% for surfaced anti-memories | Story 9 |
 | SC-017 | Contradictions resolve within 7 days | 80%+ of detected contradictions reach resolution threshold within 7 days of detection | Story 10 |
 | SC-018 | Hot cache provides fast cold-start | First query in a new session returns results in under 200ms when hot cache is populated | Story 12 |
 | SC-019 | CLI binary is portable | Single binary runs on macOS (ARM + x86), Linux (x86_64), without any runtime dependencies | Story 13 |
 | SC-020 | TUI is responsive | TUI renders and responds to input within 100ms for all navigation operations | Story 13 |
-| SC-021 | Environment detection is accurate | Correctly identifies Midnight component versions for 95%+ of standard project layouts | Story 14 |
+| SC-021 | Environment detection is accurate | Correctly identifies Midnight component versions for 95%+ of projects using standard layouts (package.json with midnight-js, .compact files with pragma, compiler config files) | Story 14 |
 | SC-022 | Session analysis surfaces real learnings | At least 50% of proposed candidate memories from transcript analysis receive "accept" from the operator | Story 15 |
 | SC-023 | Hooks don't slow agents down | All hooks complete within 3 seconds, 95th percentile | Story 16 |
 | SC-024 | Hooks prevent known mistakes | PreToolUse anti-memory warnings reduce repeated anti-pattern occurrences by 50%+ over 30 days | Story 16 |

@@ -2,6 +2,8 @@
 
 **Traceability**: Tasks map to user stories (US1-US16) via [Story] labels. Functional requirements (FR-001 through FR-073) are implemented by the tasks in the corresponding story's phase. Edge cases (EC-01 through EC-43) are handled by dedicated edge case tasks (T028a, T059a, T098a, T136a, T157a, T179a, T207a, T230a) within each phase. Success criteria (SC-001 through SC-024) are verified by test tasks and Phase 11 benchmarks; SC-015, SC-016, SC-017, SC-024 require post-launch monitoring data.
 
+**Execution Mode**: This task list is designed for autonomous execution without user supervision. The implementation MUST NOT block on user input, PR reviews, or external approvals. Each phase has a built-in verification process (code review + completion argument) that gates progression to the next phase. A single PR to `v2-rewrite` is created at the end after all phases pass verification.
+
 **Input**: Design documents from `/specs/001-fixonce-v2/`
 **Prerequisites**: plan.md, discovery/SPEC.md, research.md, data-model.md, contracts/edge-functions.md
 **Constitution**: `.sdd/memory/constitution.md` v1.1.0
@@ -58,9 +60,8 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 **Independent Test**: `make check` passes on empty workspace. CI runs on PR.
 
 ### Phase Start
-- [ ] T001 [GIT] Verify on main branch and working tree is clean
-- [ ] T002 [GIT] Pull latest changes from origin/main
-- [ ] T003 [GIT] Create feature branch: 001-fixonce-v2
+- [ ] T001 [GIT] Verify on cleanslate branch and working tree is clean
+- [ ] T002 [GIT] Pull latest changes from origin/v2-rewrite
 
 ### Implementation
 - [ ] T004 [US1] Create Cargo workspace root with `Cargo.toml` (members: crates/fixonce-cli, crates/fixonce-core, crates/fixonce-hooks) (use devs:rust-dev agent)
@@ -91,11 +92,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T028a [US1] Handle edge cases: EC-01 (agent --no-verify bypass — verify CI catches what hooks miss), EC-02 (Rust-only commits skip Deno hooks via Lefthook globs), EC-03 (docs-only commits skip code checks), EC-04 (cargo audit advisory-only in CI), EC-05 (cache keys include lockfile hashes)
 - [ ] T029 [GIT] Commit: verify quality gates pass
 
-### Phase Completion
-- [ ] T030 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T031 [GIT] Create/update PR to main with Phase 1 summary
-- [ ] T032 [GIT] Verify all CI checks pass
-- [ ] T033 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T030 [REVIEW] Phase 1 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T031 [REVIEW] Phase 1 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 1 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 1 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T032 [GIT] Commit: Phase 1 complete
 
 ---
 
@@ -106,7 +106,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T034 [GIT] Verify working tree is clean before starting Phase 2
-- [ ] T035 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T036 [US2] Create retro/P2.md for this phase
@@ -138,11 +137,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T061 [US2] Review retro/P2.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T062 [GIT] Commit: finalize phase 2 retro
 
-### Phase Completion
-- [ ] T063 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T064 [GIT] Create/update PR to main with Phase 2 summary
-- [ ] T065 [GIT] Verify all CI checks pass
-- [ ] T066 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T063 [REVIEW] Phase 2 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T064 [REVIEW] Phase 2 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 2 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 2 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T065 [GIT] Commit: Phase 2 complete
 
 ---
 
@@ -153,7 +151,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T067 [GIT] Verify working tree is clean before starting Phase 3
-- [ ] T068 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T069 [US3] Create retro/P3.md for this phase
@@ -191,11 +188,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T100 [US3] Review retro/P3.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T101 [GIT] Commit: finalize phase 3 retro
 
-### Phase Completion
-- [ ] T102 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T103 [GIT] Create/update PR to main with Phase 3 summary
-- [ ] T104 [GIT] Verify all CI checks pass
-- [ ] T105 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T102 [REVIEW] Phase 3 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T103 [REVIEW] Phase 3 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 3 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 3 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T104 [GIT] Commit: Phase 3 complete
 
 ---
 
@@ -206,7 +202,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T106 [GIT] Verify working tree is clean before starting Phase 4
-- [ ] T107 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T108 [US5] Create retro/P4.md for this phase
@@ -243,11 +238,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T138 [US5] Review retro/P4.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T139 [GIT] Commit: finalize phase 4 retro
 
-### Phase Completion
-- [ ] T140 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T141 [GIT] Create/update PR to main with Phase 4 summary
-- [ ] T142 [GIT] Verify all CI checks pass
-- [ ] T143 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T140 [REVIEW] Phase 4 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T141 [REVIEW] Phase 4 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 4 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 4 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T142 [GIT] Commit: Phase 4 complete
 
 ---
 
@@ -258,7 +252,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T144 [GIT] Verify working tree is clean before starting Phase 5
-- [ ] T145 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T146 [US6] Create retro/P5.md for this phase
@@ -278,11 +271,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T159 [US6] Review retro/P5.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T160 [GIT] Commit: finalize phase 5 retro
 
-### Phase Completion
-- [ ] T161 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T162 [GIT] Create/update PR to main with Phase 5 summary
-- [ ] T163 [GIT] Verify all CI checks pass
-- [ ] T164 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T161 [REVIEW] Phase 5 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T162 [REVIEW] Phase 5 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 5 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 5 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T163 [GIT] Commit: Phase 5 complete
 
 ---
 
@@ -293,7 +285,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T165 [GIT] Verify working tree is clean before starting Phase 6
-- [ ] T166 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T167 [US7] Create retro/P6.md for this phase
@@ -314,11 +305,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T181 [US7] Review retro/P6.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T182 [GIT] Commit: finalize phase 6 retro
 
-### Phase Completion
-- [ ] T183 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T184 [GIT] Create/update PR to main with Phase 6 summary
-- [ ] T185 [GIT] Verify all CI checks pass
-- [ ] T186 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T183 [REVIEW] Phase 6 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T184 [REVIEW] Phase 6 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 6 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 6 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T185 [GIT] Commit: Phase 6 complete
 
 ---
 
@@ -329,7 +319,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T187 [GIT] Verify working tree is clean before starting Phase 7
-- [ ] T188 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T189 [US8] Create retro/P7.md for this phase
@@ -356,11 +345,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T209 [US8] Review retro/P7.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T210 [GIT] Commit: finalize phase 7 retro
 
-### Phase Completion
-- [ ] T211 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T212 [GIT] Create/update PR to main with Phase 7 summary
-- [ ] T213 [GIT] Verify all CI checks pass
-- [ ] T214 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T211 [REVIEW] Phase 7 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T212 [REVIEW] Phase 7 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 7 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 7 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T213 [GIT] Commit: Phase 7 complete
 
 ---
 
@@ -371,7 +359,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T215 [GIT] Verify working tree is clean before starting Phase 8
-- [ ] T216 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T217 [US14] Create retro/P8.md for this phase
@@ -393,11 +380,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T232 [US14] Review retro/P8.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T233 [GIT] Commit: finalize phase 8 retro
 
-### Phase Completion
-- [ ] T234 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T235 [GIT] Create/update PR to main with Phase 8 summary
-- [ ] T236 [GIT] Verify all CI checks pass
-- [ ] T237 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T234 [REVIEW] Phase 8 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T235 [REVIEW] Phase 8 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 8 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 8 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T236 [GIT] Commit: Phase 8 complete
 
 ---
 
@@ -408,7 +394,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T238 [GIT] Verify working tree is clean before starting Phase 9
-- [ ] T239 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T240 [US13] Create retro/P9.md for this phase
@@ -436,11 +421,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T262 [US13] Review retro/P9.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T263 [GIT] Commit: finalize phase 9 retro
 
-### Phase Completion
-- [ ] T264 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T265 [GIT] Create/update PR to main with Phase 9 summary
-- [ ] T266 [GIT] Verify all CI checks pass
-- [ ] T267 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T264 [REVIEW] Phase 9 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T265 [REVIEW] Phase 9 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 9 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 9 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T266 [GIT] Commit: Phase 9 complete
 
 ---
 
@@ -451,7 +435,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T268 [GIT] Verify working tree is clean before starting Phase 10
-- [ ] T269 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T270 [US16] Create retro/P10.md for this phase
@@ -478,11 +461,10 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T291 [US16] Review retro/P10.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T292 [GIT] Commit: finalize phase 10 retro
 
-### Phase Completion
-- [ ] T293 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T294 [GIT] Create/update PR to main with Phase 10 summary
-- [ ] T295 [GIT] Verify all CI checks pass
-- [ ] T296 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T293 [REVIEW] Phase 10 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T294 [REVIEW] Phase 10 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 10 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 10 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T295 [GIT] Commit: Phase 10 complete
 
 ---
 
@@ -493,7 +475,6 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 
 ### Phase Start
 - [ ] T297 [GIT] Verify working tree is clean before starting Phase 11
-- [ ] T298 [GIT] Pull and rebase on origin/main if needed
 
 ### Implementation
 - [ ] T299 Create retro/P11.md for this phase
@@ -513,8 +494,12 @@ Phase 1 (Setup) ──► Phase 2 (DB Foundation) ──► Phase 3 (Auth & Secr
 - [ ] T313 Review retro/P11.md and extract critical learnings to CLAUDE.md (conservative)
 - [ ] T314 [GIT] Commit: finalize phase 11 retro
 
-### Phase Completion
-- [ ] T315 [GIT] Push branch to origin (ensure pre-push hooks pass)
-- [ ] T316 [GIT] Create/update PR to main with Phase 11 summary
-- [ ] T317 [GIT] Verify all CI checks pass
-- [ ] T318 [GIT] Report PR ready status
+### Phase Verification
+- [ ] T315 [REVIEW] Phase 11 Code & Quality Review: Launch two concurrent subagents: (1) Use the `devs:code-reviewer` agent to perform a comprehensive code review of all code written in this phase, reporting findings and recommendations. (2) A quality check subagent that verifies: no linting/formatting/type-checking warnings or errors (`make check` passes), all functions have real implementations (no stubs, no TODO/FIXME placeholders, no `unimplemented!()` or `todo!()` macros in non-stub code), no placeholder comments or incomplete logic. The main thread reviews both reports and classifies each finding as BLOCKER (must fix before proceeding) or SUGGESTION (note but skip). Blockers are issues that: violate the constitution, break compilation/tests, leave functionality incomplete per the phase goal, or introduce security vulnerabilities. Suggestions are: style preferences, minor refactors, optional improvements. Fix all blockers, then proceed.
+- [ ] T316 [REVIEW] Phase 11 Completion Argument: Launch two concurrent subagents (both using sonnet model): (1) Argue that Phase 11 has NOT been completed — provide specific, evidence-based, verifiable reasons referencing the phase goal, acceptance scenarios, and implementation tasks. (2) Argue that Phase 11 HAS been completed — provide specific, evidence-based, verifiable reasons referencing the same criteria. Both arguments must cite specific files, test results, and requirement IDs. Then launch a third subagent to judge which argument is correct based on the evidence presented. If the "completed" argument wins: proceed to next phase. If the "not completed" argument wins: the judge must provide a specific list of required changes. Fix those changes, re-run `make check`, and restart from the Code & Quality Review step.
+- [ ] T317 [GIT] Commit: Phase 11 complete
+
+### Final Delivery
+- [ ] T318 [GIT] Push cleanslate branch to origin
+- [ ] T319 [GIT] Create PR from cleanslate to v2-rewrite with full project summary
+- [ ] T320 [GIT] Verify all CI checks pass

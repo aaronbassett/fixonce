@@ -4,77 +4,13 @@ Persistent memory for Claude Code agents.
 
 FixOnce captures lessons learned during coding sessions — gotchas, best
 practices, corrections, and anti-patterns — and surfaces them automatically
-the next time a similar situation arises.  Knowledge accumulates across
+the next time a similar situation arises. Knowledge accumulates across
 sessions; Claude Code stops repeating the same mistakes.
 
----
-
-## Architecture
-
-```
-┌───────────────────────────────────────────────────────────────────┐
-│  Claude Code Agent                                                │
-│                                                                   │
-│  session-start ──► user-prompt-submit ──► pre/post-tool-use ──►  │
-│       │                   │                       │               │
-│       └───────────────────┴───────────────────────┘               │
-│                           │ hook events                           │
-└───────────────────────────┼───────────────────────────────────────┘
-                            │
-                            ▼
-┌────────────────────────────────────────┐
-│  fixonce-hooks  (Rust)                 │
-│  Shell-script adapters → hook binary  │
-│  Hard timeout: 3 s  ·  Always exit 0  │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│  fixonce-cli  (Rust / Clap + Tokio)    │
-│                                        │
-│  15 sub-commands (see below)           │
-│  TUI (Ratatui)  ·  JSON / text output  │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│  fixonce-core  (Rust library crate)    │
-│                                        │
-│  ┌──────────────┐  ┌────────────────┐  │
-│  │  Write       │  │  Read          │  │
-│  │  Pipeline    │  │  Pipeline      │  │
-│  │              │  │                │  │
-│  │ cred-check   │  │ query-techs    │  │
-│  │ quality-gate │  │ search-modes   │  │
-│  │ dedup        │  │ result-refine  │  │
-│  │ enrichment   │  │                │  │
-│  └──────────────┘  └────────────────┘  │
-│                                        │
-│  Memory model  ·  Dynamics  ·          │
-│  Lineage  ·  Contradictions  ·         │
-│  Signatures  ·  Hot-cache              │
-│                                        │
-│  Auth (Ed25519 + JWT)                  │
-│  Detect (Midnight ecosystem)           │
-│  Output (text / JSON / toon)           │
-└────────────────────┬───────────────────┘
-                     │
-                     ▼
-┌────────────────────────────────────────┐
-│  Supabase Backend                      │
-│  PostgreSQL + pgvector                 │
-│  Edge Functions (Deno)                 │
-│  Voyage AI embeddings                  │
-└────────────────────────────────────────┘
-```
-
-### Crate layout
-
-| Crate | Purpose |
-|-------|---------|
-| `fixonce-core` | Pure library: memory model, pipelines, auth, detection, output |
-| `fixonce-cli` | Clap CLI binary: 15 commands + Ratatui TUI |
-| `fixonce-hooks` | Hook handler logic (called by shell scripts) |
+Memories are alive: they decay over time, get reinforced by positive feedback,
+compete through contradiction courts, and self-correct through deduplication.
+A full RAG pipeline with hybrid search, Claude-powered reranking, and
+version-aware filtering ensures the right knowledge surfaces at the right time.
 
 ---
 
@@ -82,95 +18,144 @@ sessions; Claude Code stops repeating the same mistakes.
 
 ### Prerequisites
 
-- Rust 1.82+ (`rustup update stable`)
-- A Supabase project with the FixOnce schema applied (see `supabase/`)
-- `cargo` in `PATH`
+- Rust 1.82+ — install via [rustup](https://rustup.rs/)
+- A running FixOnce backend — see [`supabase/README.md`](supabase/README.md) for setup
 
-### Build and install from source
+### From source
 
 ```bash
-git clone https://github.com/aaronbassett/fixonce
+git clone https://github.com/aaronbassett/fixonce.git
 cd fixonce
 cargo install --path crates/fixonce-cli
 ```
 
-Verify the installation:
+### Verify
 
 ```bash
 fixonce --version
 ```
 
-### Environment variables
+### Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FIXONCE_API_URL` | `https://fixonce.supabase.co` | Backend API base URL |
+Set the backend URL as an environment variable (add to your shell profile):
+
+```bash
+export FIXONCE_API_URL=https://your-project.supabase.co
+```
+
+Credentials (JWT and Ed25519 keys) are stored in your OS keyring via the
+`keyring` crate. They are never written to disk in plain text.
 
 ---
 
 ## Quick start
 
-### 1. Authenticate
+### 1. Log in
 
 ```bash
-# Browser-based OAuth (GitHub)
+# Opens your browser for GitHub OAuth
 fixonce login
+```
 
-# Machine-to-machine challenge-response (headless environments)
+Or for headless/CI environments:
+
+```bash
+# Register a signing key first
+fixonce keys add
+
+# Then authenticate via challenge-response
 fixonce auth
 ```
 
-### 2. Create your first memory
+### 2. Create a memory
 
 ```bash
 fixonce create \
   --title "Always use parameterised queries for SQL" \
-  --content "Raw string interpolation in SQL queries leads to injection. Use ? or $1 placeholders and pass values as bound parameters." \
+  --content "Raw string interpolation in SQL queries leads to injection. Use ? or \$1 placeholders and pass values as bound parameters." \
   --summary "SQL injection prevention via parameterised queries." \
   --type best_practice \
   --source manual \
   --language sql
 ```
 
-### 3. Query memories during a session
+The write pipeline automatically checks for leaked credentials, assesses
+quality, deduplicates against existing memories, and enriches metadata.
+
+### 3. Search for memories
 
 ```bash
+# Quick search (default pipeline: rewrite → hybrid search → rerank)
 fixonce query "SQL injection prevention"
+
+# Deep search (adds HyDE, multi-query, confidence scoring, coverage check)
+fixonce query "SQL injection prevention" --deep
+
+# Filter by version metadata
+fixonce query "compact map iteration" --version compact_compiler=0.15
+
+# JSON output for piping to other tools
+fixonce query "error handling" --format json
 ```
 
-### 4. Launch the TUI
+### 4. Give feedback
+
+```bash
+# This memory helped
+fixonce feedback <memory-id> helpful
+
+# This memory is outdated
+fixonce feedback <memory-id> outdated
+
+# This memory caused harm
+fixonce feedback <memory-id> damaging
+```
+
+Feedback directly affects memory scores: `helpful` reinforces, `outdated`
+accelerates decay, `damaging` sharply reduces the score.
+
+### 5. Launch the TUI
 
 ```bash
 fixonce tui
 ```
 
-### 5. Set up Claude Code hooks (optional but recommended)
+An interactive terminal UI for browsing memories, viewing activity, managing
+keys, and checking system health. Requires a terminal of at least 80×24.
+
+### 6. Set up Claude Code hooks (recommended)
+
+Make the hook scripts executable:
 
 ```bash
 chmod +x hooks/*.sh
 ```
 
-Add to `.claude/settings.json`:
+Add to your project's `.claude/settings.json`:
 
 ```json
 {
   "hooks": {
-    "PreToolUse":        [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/pre-tool-use.sh"}]}],
-    "PostToolUse":       [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/post-tool-use.sh"}]}],
-    "UserPromptSubmit":  [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/user-prompt-submit.sh"}]}],
-    "Stop":              [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/stop.sh"}]}]
+    "PreToolUse":        [{ "matcher": "", "hooks": [{ "type": "command", "command": "hooks/pre-tool-use.sh" }] }],
+    "PostToolUse":       [{ "matcher": "", "hooks": [{ "type": "command", "command": "hooks/post-tool-use.sh" }] }],
+    "UserPromptSubmit":  [{ "matcher": "", "hooks": [{ "type": "command", "command": "hooks/user-prompt-submit.sh" }] }],
+    "Stop":              [{ "matcher": "", "hooks": [{ "type": "command", "command": "hooks/stop.sh" }] }]
   }
 }
 ```
 
-> There is no native `session-start` hook.  Wire it via your shell RC:
-> ```bash
-> alias claude='hooks/session-start.sh && claude'
-> ```
+For session-start, wire it via your shell profile:
+
+```bash
+alias claude='hooks/session-start.sh && claude'
+```
+
+All hooks enforce a 3-second timeout and always exit 0 — they never block
+the agent.
 
 ---
 
-## CLI Reference — all 15 commands
+## Command reference
 
 ### Authentication
 
@@ -182,175 +167,106 @@ Add to `.claude/settings.json`:
 | `fixonce keys list` | List all registered signing keys |
 | `fixonce keys revoke <key-id>` | Revoke a signing key |
 
-### Memory CRUD
+### Memory operations
 
 | Command | Description |
 |---------|-------------|
-| `fixonce create [FLAGS]` | Create a new memory (see flags below) |
+| `fixonce create [flags]` | Create a new memory (runs full write pipeline) |
 | `fixonce get <id>` | Retrieve a memory by UUID |
-| `fixonce update <id> [FLAGS]` | Partially update a memory |
-| `fixonce delete <id>` | Soft-delete a memory |
-| `fixonce feedback <id> <helpful\|outdated\|damaging>` | Submit feedback that adjusts the memory's decay/reinforcement scores |
+| `fixonce update <id> [flags]` | Update a memory's fields |
+| `fixonce delete <id>` | Soft-delete a memory (preserves lineage) |
+| `fixonce feedback <id> <rating>` | Rate a memory: `helpful`, `outdated`, or `damaging` |
 
-### Intelligence
+### Search and analysis
 
 | Command | Description |
 |---------|-------------|
-| `fixonce query <text>` | Run the full read pipeline (vector search + Claude refinement) |
-| `fixonce lineage <id>` | Show the mutation history chain for a memory |
-| `fixonce analyze <session-log>` | Extract memory candidates from a Claude Code session transcript |
+| `fixonce query <text>` | Search memories with RAG pipeline |
+| `fixonce lineage <id>` | Show a memory's full mutation history |
+| `fixonce analyze <session-log>` | Extract memory candidates from a Claude Code transcript |
 
 ### Environment
 
 | Command | Description |
 |---------|-------------|
 | `fixonce detect` | Detect Midnight ecosystem versions in the current project |
-| `fixonce context` | Gather full project context (versions + git branch + file structure) |
+| `fixonce context` | Gather full project context (versions, git info, file structure) |
 
 ### Utilities
 
 | Command | Description |
 |---------|-------------|
 | `fixonce config` | Display the active CLI configuration |
-| `fixonce tui` | Launch the interactive Ratatui terminal UI |
-| `fixonce hook <event>` | Dispatch a Claude Code lifecycle hook (called by shell scripts) |
+| `fixonce tui` | Launch the interactive terminal UI |
+| `fixonce hook <event>` | Dispatch a Claude Code lifecycle hook (used by shell scripts) |
 
 ### `fixonce create` flags
 
-```
---title <TITLE>       Memory title (required)
---content <CONTENT>   Full memory content (required)
---summary <SUMMARY>   One-sentence summary (required)
---type <TYPE>         gotcha | best_practice | correction | anti_pattern | discovery
---source <SOURCE>     correction | observation | pr_feedback | manual | harvested
---language <LANG>     Programming language tag (e.g. rust, python, typescript)
---source-url <URL>    Link to the original source or issue
---repo-url <URL>      Repository URL
---format <FORMAT>     text | json (output format)
-```
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--title <TITLE>` | yes | Short descriptive title |
+| `--content <CONTENT>` | yes | Full memory content |
+| `--summary <SUMMARY>` | yes | One-sentence summary |
+| `--type <TYPE>` | yes | `gotcha`, `best_practice`, `correction`, `anti_pattern`, `discovery` |
+| `--source <SOURCE>` | yes | `correction`, `observation`, `pr_feedback`, `manual`, `harvested` |
+| `--language <LANG>` | no | Programming language (e.g. `rust`, `python`, `compact`) |
+| `--source-url <URL>` | no | Link to origin (PR, issue, etc.) |
+| `--repo-url <URL>` | no | Repository URL |
+| `--format <FORMAT>` | no | Output format: `text` (default), `json`, `toon` |
+| `--skip-pipeline` | no | Skip write pipeline (credential check, quality gate, dedup) |
+
+### `fixonce query` flags
+
+| Flag | Description |
+|------|-------------|
+| `--deep` | Use the deep pipeline (multi-query, HyDE, confidence, coverage) |
+| `--version <key=value>` | Filter by version metadata (e.g. `compact_compiler=0.15`) |
+| `--format <FORMAT>` | Output format: `text` (default), `json`, `toon` |
+| `--limit <N>` | Maximum number of results (default: 20) |
 
 ### Output formats
 
-Most commands support `--format text` (default) or `--format json`.
+All commands that produce output support `--format`:
+
+- **text** (default) — human-readable, coloured for terminals
+- **json** — structured JSON, suitable for piping to `jq` or other tools
+- **toon** — token-optimized notation, compact key-value format for LLM consumption
 
 ---
 
-## Configuration reference
+## How it works
 
-FixOnce reads configuration from environment variables only; there is no
-configuration file.
+### Hooks
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `FIXONCE_API_URL` | Supabase project URL | `https://fixonce.supabase.co` |
+| Hook | When | What it does |
+|------|------|--------------|
+| session-start | Session begins | Detects project context, surfaces top 3 critical memories |
+| user-prompt-submit | User types a prompt | Injects top 5 relevant memories as context |
+| pre-tool-use | Before a tool runs | Warns if proposed action matches an anti-pattern (threshold: 0.7) |
+| post-tool-use | After a tool runs | Advises if output matches known issues (threshold: 0.5) |
+| stop | Session ends | Surfaces session-end reminders |
 
-Credentials (JWT and Ed25519 keys) are stored exclusively in the OS keyring
-using the `keyring` crate.  They are **never** written to disk in plain text.
+### Memory lifecycle
 
----
+1. **Created** — enters the write pipeline (credential scan, quality gate, dedup, enrichment)
+2. **Embedded** — VoyageAI generates a 1024-dimension vector for hybrid search
+3. **Surfaced** — the read pipeline finds and ranks relevant memories
+4. **Reinforced** — positive feedback increases the score
+5. **Decayed** — memories naturally lose relevance (30-day half-life)
+6. **Soft-deleted** — when decay drops below 0.1, the memory is retired
 
-## Memory model
+### Memory types
 
-A memory record captures a piece of developer knowledge:
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `id` | UUID | Unique identifier |
-| `title` | string | Short descriptive title |
-| `content` | string | Full knowledge payload |
-| `summary` | string | One-sentence summary for search ranking |
-| `memory_type` | enum | `gotcha`, `best_practice`, `correction`, `anti_pattern`, `discovery` |
-| `source_type` | enum | `correction`, `observation`, `pr_feedback`, `manual`, `harvested` |
-| `language` | string? | Programming language tag |
-| `decay_score` | float | Relevance weight (1.0 = fresh, approaches 0.0 over time) |
-| `reinforcement_score` | float | Boosted by helpful feedback |
-| `embedding_status` | enum | `complete`, `pending`, `failed` |
-| `pipeline_status` | enum | `complete`, `incomplete` |
-
-### Decay and reinforcement
-
-Memories naturally decay with a 30-day half-life:
-
-```
-decay_score = initial × 0.5^(days_elapsed / 30)
-```
-
-Positive feedback (`helpful`) reinforces the score; `damaging` feedback
-reduces it.  When the decay score drops below `0.1` the memory is eligible
-for soft-deletion.
-
----
-
-## Hook behaviour
-
-| Hook | Trigger | Action |
-|------|---------|--------|
-| `session-start` | Session begins | Surfaces top 3 critical memories |
-| `user-prompt-submit` | User submits prompt | Injects top 5 relevant memories |
-| `pre-tool-use` | Before tool executes (similarity > 0.7) | Warns on anti-pattern matches |
-| `post-tool-use` | After tool executes (similarity > 0.5) | Advises on related memories |
-| `stop` | Session ends | Surfaces session-end reminders |
-
-All hooks enforce a **3-second hard timeout** and always exit `0` — they are
-warn-only and never block the agent.
-
----
-
-## Development
-
-### Build
-
-```bash
-cargo build --workspace
-```
-
-### Test
-
-```bash
-cargo test --workspace
-```
-
-The test suite includes:
-
-- **Unit tests** inline in every module (`#[cfg(test)]`)
-- **Integration tests** in `crates/fixonce-core/tests/`
-  - `e2e_memory_lifecycle.rs` — memory create/serialize/format/decay cycle
-  - `e2e_auth_flow.rs` — JWT expiry, keypair generation, nonce signing
-  - `e2e_write_pipeline.rs` — credential detection, quality gate, dedup, enrichment
-  - `e2e_dynamics.rs` — contradiction resolution, decay simulation, lineage chains
-  - `e2e_detection.rs` — Midnight version detection, project context gathering
-  - `bench_hot_cache.rs` — performance assertions (insert+query 50 items < 50ms)
-
-### Lint
-
-```bash
-cargo clippy --workspace -- -D warnings
-```
-
-### Format
-
-```bash
-cargo fmt --all
-```
-
----
-
-## Contributing
-
-1. Fork the repository and create a feature branch from `main`.
-2. Write tests for every new behaviour — the project targets 100% logical
-   coverage of pure functions.
-3. Run `cargo test --workspace` and `cargo clippy --workspace -- -D warnings`
-   before opening a PR.
-4. Keep commits small and focused.  Commit messages follow the Conventional
-   Commits convention: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`.
-5. PRs that add network-dependent code must mock the external calls in tests.
-
-All contributions are welcome: bug fixes, documentation, new memory types,
-additional language detection hints, and performance improvements.
+| Type | Use for |
+|------|---------|
+| `gotcha` | Surprising behaviour that trips people up |
+| `best_practice` | Recommended approaches |
+| `correction` | Fixes for common mistakes |
+| `anti_pattern` | Things to explicitly avoid (surfaced as warnings) |
+| `discovery` | New findings or insights |
 
 ---
 
 ## License
 
-MIT — see `LICENSE`.
+MIT

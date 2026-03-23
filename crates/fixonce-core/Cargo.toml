@@ -1,0 +1,25 @@
+[package]
+name = "fixonce-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+base64 = "0.22.1"
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+hex = "0.4.3"
+indicatif = "0.17"
+keyring = "3"
+open = "5.3.3"
+rand_core = { version = "0.6", features = ["getrandom"] }
+regex = "1"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  commands:
+    rust-fmt:
+      glob: "**/*.rs"
+      run: cargo fmt --check
+    rust-clippy:
+      glob: "**/*.rs"
+      run: cargo clippy -- -D warnings
+    deno-fmt:
+      glob: "supabase/functions/**/*.ts"
+      run: deno fmt --check {staged_files}
+    deno-lint:
+      glob: "supabase/functions/**/*.ts"
+      run: deno lint {staged_files}

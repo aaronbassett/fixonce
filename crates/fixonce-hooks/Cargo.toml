@@ -1,0 +1,15 @@
+[package]
+name = "fixonce-hooks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+fixonce-core = { path = "../fixonce-core" }
+thiserror = "2"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full", "test-util"] }
+
+[lints]
+workspace = true

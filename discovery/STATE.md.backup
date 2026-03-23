@@ -1,0 +1,253 @@
+# Discovery State: fixonce-v2
+
+**Updated**: 2026-03-23 07:00 UTC
+**Iteration**: 2
+**Phase**: Story Crystallization
+
+---
+
+## Problem Understanding
+
+### Problem Statement
+
+LLM coding agents operate in isolated sessions with no persistent memory. Every new session starts from zero, unaware of corrections and lessons from previous sessions. For developers building on the Midnight Network — where language version and SDK version compatibility is a constant source of errors — this creates a costly cycle of repeated mistakes, siloed knowledge, and version-sensitive errors that agents can't track. FixOnce v1 proved the concept as a TypeScript monorepo but hit architectural limits: client-side API key storage doesn't scale to teams, and the lack of proper auth blocks the path from internal tool to ecosystem resource. FixOnce v2 is a clean-slate rewrite delivering a living memory system where memories compete, reinforce, decay, and replace each other — converging on what actually works.
+
+### Personas
+
+| Persona | Description | Primary Goals |
+|---------|-------------|---------------|
+| DevRel Agent Operator | Aaron and the Midnight DevRel team, running LLM coding agents to build and maintain Midnight projects | Zero repeated mistakes across agent sessions, institutional memory that compounds over time |
+| LLM Coding Agent | Claude Code (or similar) working on a Midnight project, consuming FixOnce via CLI/hooks | Get contextually relevant memories before making mistakes, provide feedback on memory usefulness |
+| Ecosystem Developer (future) | External developer building on Midnight, using FixOnce as a provided service | Access shared best practices and gotchas specific to their SDK/compiler versions |
+| Dashboard Admin | Team member managing the memory store via web UI | Search, browse, create, edit, and curate memories; monitor system health via activity stream |
+
+### Current State vs. Desired State
+
+**Today (v1 / without v2)**: API keys stored in local config files. No auth — anyone with keys can access everything. TypeScript CLI is functional but slow for agent workflows. No memory dynamics — memories sit static, accumulating noise over time. No way to detect contradictions or stale information. Passive knowledge capture doesn't exist — every memory must be manually written.
+
+**Tomorrow (with v2)**: Server-side encrypted secrets with ephemeral client access. GitHub org-restricted auth with CLI public-key registration. Rust CLI with native-speed non-inference operations. Memories decay, reinforce, and self-correct through use and feedback. Contradictions between memories resolve through agent experimentation. Session transcripts get analyzed for implicit learnings. Pre-computed memory signatures give agents a hot cache of relevant knowledge before they even ask.
+
+### Constraints
+
+- **Claude is a hard dependency** — all inference (quality gating, dedup, rewriting, reranking) uses `claude -p --output-format json`; no local/offline fallback
+- **Supabase is the backend** — all storage, auth, and edge functions on Supabase; no self-hosted option
+- **VoyageAI voyage-code-3** for embeddings — specialized code embedding model, not swappable
+- **Midnight-specific metadata schema** — version fields, SDK tracking, etc. are Midnight-focused; no generic multi-ecosystem abstraction
+- **Ship complete** — no incremental/degraded releases; the full pipeline ships together
+- **Warn-only intervention** — hooks advise, never block agent actions
+- **CONSTITUTION.md governs all development** — see project root
+
+---
+
+## Story Landscape
+
+### Story Status Overview
+
+| # | Story | Priority | Status | Confidence | Blocked By |
+|---|-------|----------|--------|------------|------------|
+| 1 | Developer Tooling & CI | P1 | ✅ In SPEC | 20% | - |
+| 2 | Database Foundation & Edge Functions | P1 | ✅ In SPEC | 20% | S1 |
+| 3 | Authentication & Authorization | P1 | ✅ In SPEC | 20% | S2 |
+| 4 | Encrypted Secrets Management | P1 | ✅ In SPEC | 20% | S3 |
+| 5 | Memory CRUD with Rich Metadata | P1 | ✅ In SPEC | 20% | S2 |
+| 6 | Write Pipeline | P1 | ✅ In SPEC | 20% | S5 |
+| 7 | Read Pipeline | P1 | ✅ In SPEC | 20% | S5 |
+| 8 | Memory Dynamics | P1 | ✅ In SPEC | 20% | S5 |
+| 9 | Anti-Memories | P1 | ✅ In SPEC | 20% | S5, S8 |
+| 10 | Contradiction Detection & Resolution | P1 | ✅ In SPEC | 20% | S8, S9 |
+| 11 | Memory Lineage | P1 | ✅ In SPEC | 20% | S5 |
+| 12 | Memory Signatures | P1 | ✅ In SPEC | 20% | S5, S7 |
+| 13 | Rust CLI & TUI | P1 | ✅ In SPEC | 20% | S1-S4 |
+| 14 | Environment Detection & Context Gathering | P1 | ✅ In SPEC | 20% | S13 |
+| 15 | Session Transcript Analysis | P1 | ⏳ Queued | 20% | S6, S13 |
+| ~~16~~ | ~~Web Dashboard~~ | - | ❌ Deleted (D16) | - | - |
+| 16 | Claude Code Hooks | P1 | ⏳ Queued | 20% | S7, S13 |
+
+### Story Dependencies
+
+```
+S1 (Dev Tooling & CI) ──► ALL (must be established first)
+
+S2 (DB Foundation) ──► S3 (Auth) ──► S4 (Secrets)
+       │
+       ├──► S5 (Memory CRUD) ──► S6 (Write Pipeline)
+       │         │
+       │         ├──► S7 (Read Pipeline)
+       │         │         │
+       │         ├──► S8 (Dynamics) ──► S9 (Anti-Memories) ──► S10 (Contradictions)
+       │         │
+       │         ├──► S11 (Lineage)
+       │         │
+       │         └──► S12 (Signatures) ◄── S7
+       │
+S2-S4 ──► S13 (Rust CLI & TUI) ──► S14 (Env Detection)
+                │
+                ├──► S15 (Transcript Analysis) ◄── S6
+                │
+                └──► S16 (Hooks) ◄── S7
+```
+
+*Note: S16 (Web Dashboard) deleted per D16. TUI capabilities folded into S13 (Rust CLI & TUI). Old S17 (Claude Code Hooks) renumbered to S16.*
+
+### Proto-Stories / Emerging Themes
+
+*All themes crystallized into stories above. No remaining proto-stories.*
+
+---
+
+## Completed Stories Summary
+
+| # | Story | Priority | Completed | Key Decisions | Revision Risk |
+|---|-------|----------|-----------|---------------|---------------|
+| *No completed stories yet* | - | - | - | - | - |
+
+*Full stories in SPEC.md*
+
+---
+
+## In-Progress Story Detail
+
+### Story 2: Database Foundation & Edge Functions (Priority: P1)
+
+**One-line**: As the system, I need a Supabase database with pgvector, full-text search, RLS, and edge functions for all data operations so that every consumer (CLI, web, hooks) accesses data through a single secure API surface.
+
+**Current Confidence**: 90%
+
+**Working Understanding**:
+Supabase Postgres database with 7 tables (D6): `memory`, `feedback`, `activity_log`, `secrets`, `cli_keys`, `memory_lineage`, `contradiction_pairs`. All client access goes through edge functions (CONSTITUTION §I). Edge functions verify auth via Supabase auth helpers (D7). Migrations managed via Supabase CLI (D10). Embeddings stored as `vector(1024)` matching voyage-code-3 output (D8). Search endpoint accepts `search_type` parameter (hybrid|fts|vector, default hybrid) — hybrid uses a Postgres RPC function for single-trip Reciprocal Rank Fusion (D9).
+
+**Acceptance Scenarios**:
+
+1. **Given** a fresh Supabase project, **When** all migrations are run via `supabase db push`, **Then** all 7 tables exist with correct columns, constraints, indexes, and RLS policies enabled
+
+2. **Given** the `memory` table exists, **When** a new memory is inserted (via edge function), **Then** it stores: title, content, summary, memory_type, source_type, language, embedding (vector(1024)), weighted tsvector (for FTS), Midnight-specific version metadata (compact_pragma, compact_compiler, midnight_js, etc.), provenance fields (source_url, repo_url, task_summary), decay_score (default 1.0), reinforcement_score (default 0), created_at, updated_at
+
+3. **Given** RLS is enabled on all tables, **When** an unauthenticated request attempts to query the database directly (not through edge functions), **Then** the request is denied — zero rows returned
+
+4. **Given** a valid authenticated request to the search edge function with `search_type=hybrid`, **When** the Postgres RPC function executes, **Then** it combines full-text search (weighted tsvector with ts_rank) and vector similarity (cosine distance via pgvector) using Reciprocal Rank Fusion and returns ranked results
+
+5. **Given** a valid authenticated request with `search_type=fts`, **When** the edge function queries, **Then** it returns full-text search results only (tsvector + ts_rank), without vector similarity
+
+6. **Given** a valid authenticated request with `search_type=vector`, **When** the edge function queries, **Then** it returns vector similarity results only (cosine distance via pgvector HNSW index), without full-text ranking
+
+7. **Given** any edge function receives a request, **When** it processes the request, **Then** it: (a) verifies auth via `supabase.auth.getUser()`, (b) validates input schema, (c) executes the database operation, (d) logs the operation to `activity_log`, (e) returns a structured response
+
+8. **Given** a memory is inserted, **When** the weighted tsvector is computed, **Then** title has weight A, summary has weight B, and content has weight C — matching the v1 weighting scheme
+
+**Edge Cases**:
+- EC-06: Migration is run against a project that already has some tables (idempotent migrations) — Supabase CLI handles this with migration tracking
+- EC-07: Embedding column receives a vector with wrong dimensions (not 1024) — database constraint MUST reject it
+- EC-08: Full-text search query contains special characters (e.g., `&&`, `!!`) — tsvector query MUST sanitize input to prevent syntax errors
+- EC-09: Vector search with no results above similarity threshold — return empty array, not error
+- EC-10: Edge function receives malformed JSON body — return 400 with structured error per CONSTITUTION §VI
+- EC-11: Activity log grows unbounded — MUST have a retention policy (configurable, default 90 days)
+
+**Requirements**:
+- FR-008: All 7 tables MUST have RLS enabled with deny-by-default policies
+- FR-009: The `memory` table MUST have an HNSW index on the embedding column for vector similarity search
+- FR-010: The `memory` table MUST have a GIN index on the tsvector column for full-text search
+- FR-011: Every edge function MUST verify authentication via `supabase.auth.getUser()` before any database operation
+- FR-012: Every edge function MUST validate input against a Zod schema before processing
+- FR-013: Every mutating edge function MUST log the operation to `activity_log` with: user_id, action, entity_type, entity_id, metadata, timestamp
+- FR-014: The search edge function MUST accept a `search_type` parameter (hybrid|fts|vector) defaulting to hybrid
+- FR-015: The hybrid search Postgres RPC function MUST combine FTS ts_rank and vector cosine similarity using Reciprocal Rank Fusion
+- FR-016: Migrations MUST be managed via Supabase CLI (`supabase migration new`, `supabase db push`)
+- FR-017: The embedding column MUST enforce `vector(1024)` dimension constraint
+- FR-018: The `activity_log` table MUST have a retention policy of 90 days (configurable)
+
+**Success Criteria**:
+- SC-004: All edge functions return structured errors with appropriate HTTP status codes — 0 generic 500 errors in normal operation
+- SC-005: RLS blocks 100% of direct database queries from unauthenticated clients
+- SC-006: Hybrid search returns results within 500ms for a database with 10,000 memories
+
+**Confidence Gaps**: None — ready to graduate
+
+---
+
+### Story 1: Developer Tooling & CI (Priority: P1)
+
+**One-line**: As the project owner, I want automated linting, formatting, typechecking, testing, and CI enforcement so that every contribution — human or agent — meets quality standards from commit one.
+
+**Current Confidence**: 90%
+
+**Working Understanding**:
+Single monorepo (D2) with Cargo workspace for Rust CLI and pnpm workspace for TypeScript (web dashboard, shared types). Supabase edge functions use Deno runtime. Three tooling tracks:
+- **Rust** (CLI): `cargo fmt`, `clippy` (pedantic, warnings as errors per CONSTITUTION.md §IV), `cargo test`, `cargo audit`
+- **TypeScript/Node** (web dashboard): ESLint + Prettier, strict `tsc`, vitest
+- **Deno** (edge functions): `deno lint`, `deno fmt`, `deno check` (D5 — official Deno-native tooling)
+- **Git hooks via Lefthook** (D3): Pre-commit checks formatting + linting; pre-push runs tests + typecheck
+- **CI via GitHub Actions** (D4): All checks on every PR, merge blocked on failure; correctness over speed
+
+**Acceptance Scenarios**:
+
+1. **Given** a developer clones the repo and runs the setup command, **When** they make their first commit, **Then** Lefthook pre-commit hooks automatically run: `cargo fmt --check` + `clippy` on changed Rust files, `prettier --check` + `eslint` on changed TypeScript/web files, `deno fmt --check` + `deno lint` on changed edge function files
+   - *Confidence*: High
+
+2. **Given** a developer pushes a branch and opens a PR, **When** GitHub Actions CI runs, **Then** three parallel jobs execute: (a) Rust: fmt, clippy, test, audit; (b) TypeScript/web: prettier, eslint, tsc --noEmit, vitest; (c) Deno/edge functions: deno fmt --check, deno lint, deno check. All three must pass for merge to be enabled.
+   - *Confidence*: High
+
+3. **Given** the Rust CLI code contains `unwrap()` in a library module, **When** clippy runs with `#![deny(clippy::all, clippy::pedantic)]`, **Then** the check fails with a clear error pointing to the offending line
+   - *Confidence*: High
+
+4. **Given** the web dashboard TypeScript code uses `any` type, **When** `tsc --noEmit --strict` runs, **Then** the typecheck fails
+   - *Confidence*: High
+
+5. **Given** an edge function file has formatting that doesn't match `deno fmt` standards, **When** the pre-commit hook runs on that file, **Then** the commit is blocked with a message showing which files need formatting
+   - *Confidence*: High
+
+6. **Given** a developer wants to run all checks locally before pushing, **When** they run `make check` (or equivalent), **Then** all three tooling tracks run and report results
+   - *Confidence*: High
+
+**Edge Cases**:
+- EC-01: Agent-authored commits bypass git hooks (e.g., `--no-verify`) — CI is the safety net; CI MUST NOT be bypassable
+- EC-02: Commit only changes Rust files — Lefthook MUST only run Rust hooks (not TypeScript/Deno), for speed
+- EC-03: Commit only changes Markdown/docs — hooks SHOULD skip code quality checks entirely
+- EC-04: `cargo audit` finds a vulnerability in a dependency — CI SHOULD warn but NOT block (advisory only for audit; blocking for all other checks)
+- EC-05: CI caching is stale after Cargo.lock or pnpm-lock.yaml changes — cache keys MUST include lockfile hashes
+
+**Requirements**:
+- FR-001: Lefthook pre-commit hooks MUST check formatting and linting for changed files only, scoped to the correct tooling track (Rust/TypeScript/Deno)
+- FR-002: GitHub Actions CI MUST run all quality checks (lint, format, typecheck, test) in parallel jobs on every PR to `main`
+- FR-003: GitHub Actions MUST require all check jobs to pass before merge is enabled (branch protection rule)
+- FR-004: CI MUST cache Rust dependencies (cargo registry + target) and Node dependencies (pnpm store) with lockfile-based cache keys
+- FR-005: A single top-level command (e.g., `make check`) MUST run all quality checks for all three tooling tracks locally
+- FR-006: `cargo audit` MUST run in CI as an advisory check (non-blocking)
+- FR-007: Lefthook MUST be auto-installed on `git clone` + setup (e.g., via `pnpm install` postinstall or documented setup step)
+
+**Success Criteria**:
+- SC-001: No commit can reach `main` without passing all lint, format, typecheck, and test checks
+- SC-002: Local quality checks are runnable with a single command and match CI behavior
+- SC-003: Lefthook hooks complete in under 30 seconds for a typical commit touching 5-10 files
+
+**Confidence Gaps**: None — ready to graduate
+
+---
+
+## Watching List
+
+*Items that might affect graduated stories:*
+
+[Will be populated as graduated stories accumulate]
+
+---
+
+## Glossary
+
+- **Memory**: A stored piece of knowledge — a correction, gotcha, best practice, anti-pattern, or discovery — with embeddings, metadata, and provenance
+- **Anti-Memory**: A first-class "do NOT do this" artifact with its own embedding, version constraints, and decay behavior
+- **Memory Lineage**: The full history of a memory: what it replaced, what merged into it, what feedback changed it
+- **Memory Signature**: A pre-computed relevance fingerprint based on correlated files, error patterns, and SDK method calls
+- **Contradiction Court**: The process by which conflicting memories are flagged, tested by agents, and resolved through feedback
+- **Hybrid Decay**: Memory degradation that combines time-based decay with event-driven acceleration (e.g., new SDK release)
+- **Reinforcement**: The process by which frequently accessed or positively reviewed memories increase in strength
+- **Passive Harvesting**: Analyzing Claude Code session transcripts to propose candidate memories from implicit learnings
+- **TOON**: Token-Optimized Object Notation — a structured output format optimized for LLM token efficiency
+- **Compact**: The Midnight Network's smart contract language
+- **Edge Function**: A Supabase serverless function that handles all database operations behind RLS
+
+---
+
+## Next Actions
+
+- [ ] Present story backlog to user for confirmation and priority validation
+- [ ] Begin deep-dive on Story 1 (Database Foundation) once backlog is confirmed

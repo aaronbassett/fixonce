@@ -1,263 +1,356 @@
-<div align="center">
-  <img src="fixonce-mascot.png" alt="FixOnce — an elephant never forgets, and now neither does your agent" width="400">
-
 # FixOnce
 
-> An elephant never forgets — and now neither does your agent.
+Persistent memory for Claude Code agents.
 
-</div>
+FixOnce captures lessons learned during coding sessions — gotchas, best
+practices, corrections, and anti-patterns — and surfaces them automatically
+the next time a similar situation arises.  Knowledge accumulates across
+sessions; Claude Code stops repeating the same mistakes.
 
-A shared memory layer for LLM coding agents. FixOnce captures corrections, gotchas, and discoveries from coding sessions and surfaces them contextually — turning every mistake into institutional memory.
-
-## The Problem
-
-LLM coding agents operate in isolated sessions with no persistent memory. Every new session starts from zero, unaware of corrections and lessons from previous sessions. This creates a costly cycle of repeated mistakes, siloed knowledge, and version-sensitive errors that agents can't track.
-
-## How It Works
-
-FixOnce stores memories (corrections, patterns, gotchas) in a Supabase-backed database with vector embeddings. When an agent starts a session or encounters a problem, FixOnce surfaces relevant memories using hybrid search (full-text + semantic). An LLM-powered pipeline handles quality gating, duplicate detection, query rewriting, and result reranking to keep the memory store clean and results relevant.
-
-## Features
-
-- **Hybrid search** — combines full-text search with pgvector semantic similarity using Reciprocal Rank Fusion
-- **Write pipeline** — quality gate with credential detection, 5-outcome LLM dedup (new, discard, replace, update, merge)
-- **Read pipeline** — query rewriting, hybrid/vector/FTS search, LLM reranking, verbosity projections
-- **Version-aware** — filter memories by component version predicates (e.g., "compact_compiler >= 0.14.0")
-- **MCP server** — 7 tools for direct Claude Code integration
-- **CLI** — 10 commands for terminal-based memory management
-- **Web UI** — React dashboard for browsing, creating, and managing memories
-- **Claude Code hooks** — automatic memory surfacing during coding sessions
+---
 
 ## Architecture
 
 ```
-apps/
-  mcp-server/     MCP server (7 tools, stdio transport)
-  cli/            CLI (commander, 10 commands)
-  web/            Web UI (React 19, Vite, Express 5, SSE)
-  hooks/          Claude Code hooks (5 lifecycle hooks)
-
-packages/
-  shared/         Types, Zod schemas, enums, errors
-  storage/        Supabase client, CRUD, search, embeddings
-  pipeline/       Write/read pipelines, LLM client, projections
-  activity/       Activity logging, SSE pub-sub stream
+┌───────────────────────────────────────────────────────────────────┐
+│  Claude Code Agent                                                │
+│                                                                   │
+│  session-start ──► user-prompt-submit ──► pre/post-tool-use ──►  │
+│       │                   │                       │               │
+│       └───────────────────┴───────────────────────┘               │
+│                           │ hook events                           │
+└───────────────────────────┼───────────────────────────────────────┘
+                            │
+                            ▼
+┌────────────────────────────────────────┐
+│  fixonce-hooks  (Rust)                 │
+│  Shell-script adapters → hook binary  │
+│  Hard timeout: 3 s  ·  Always exit 0  │
+└────────────────────┬───────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────┐
+│  fixonce-cli  (Rust / Clap + Tokio)    │
+│                                        │
+│  15 sub-commands (see below)           │
+│  TUI (Ratatui)  ·  JSON / text output  │
+└────────────────────┬───────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────┐
+│  fixonce-core  (Rust library crate)    │
+│                                        │
+│  ┌──────────────┐  ┌────────────────┐  │
+│  │  Write       │  │  Read          │  │
+│  │  Pipeline    │  │  Pipeline      │  │
+│  │              │  │                │  │
+│  │ cred-check   │  │ query-techs    │  │
+│  │ quality-gate │  │ search-modes   │  │
+│  │ dedup        │  │ result-refine  │  │
+│  │ enrichment   │  │                │  │
+│  └──────────────┘  └────────────────┘  │
+│                                        │
+│  Memory model  ·  Dynamics  ·          │
+│  Lineage  ·  Contradictions  ·         │
+│  Signatures  ·  Hot-cache              │
+│                                        │
+│  Auth (Ed25519 + JWT)                  │
+│  Detect (Midnight ecosystem)           │
+│  Output (text / JSON / toon)           │
+└────────────────────┬───────────────────┘
+                     │
+                     ▼
+┌────────────────────────────────────────┐
+│  Supabase Backend                      │
+│  PostgreSQL + pgvector                 │
+│  Edge Functions (Deno)                 │
+│  Voyage AI embeddings                  │
+└────────────────────────────────────────┘
 ```
 
-## Prerequisites
+### Crate layout
 
-- A [Supabase](https://supabase.com/) project (for database + pgvector)
-- A [Voyage AI](https://www.voyageai.com/) API key (for embeddings)
-- An [OpenRouter](https://openrouter.ai/) API key (for LLM calls)
+| Crate | Purpose |
+|-------|---------|
+| `fixonce-core` | Pure library: memory model, pipelines, auth, detection, output |
+| `fixonce-cli` | Clap CLI binary: 15 commands + Ratatui TUI |
+| `fixonce-hooks` | Hook handler logic (called by shell scripts) |
+
+---
 
 ## Installation
 
-Install globally from npm:
+### Prerequisites
+
+- Rust 1.82+ (`rustup update stable`)
+- A Supabase project with the FixOnce schema applied (see `supabase/`)
+- `cargo` in `PATH`
+
+### Build and install from source
 
 ```bash
-npm install -g fixonce
+git clone https://github.com/aaronbassett/fixonce
+cd fixonce
+cargo install --path crates/fixonce-cli
 ```
 
-Or run directly with npx:
+Verify the installation:
 
 ```bash
-npx fixonce
-```
-
-Individual components are also available:
-
-```bash
-npx fixonce         # CLI
-npx fixonce-mcp     # MCP server
-npx fixonce-web     # Web UI
-```
-
-All packages are published under the `@fixonce` scope. The commands above are shorthand wrappers — you can also install the scoped packages directly:
-
-```bash
-npm install -g @fixonce/cli
-npm install -g @fixonce/mcp-server
-npm install -g @fixonce/web
-```
-
-## Configuration
-
-FixOnce requires four settings. You can configure them via a settings file or environment variables.
-
-### Settings file (recommended)
-
-Run the config command to create and edit your settings file:
-
-```bash
-npx fixonce config
-```
-
-This creates `~/.config/fixonce/settings.json` and opens it in your `$EDITOR`. Fill in your API keys:
-
-```json
-{
-  "supabaseUrl": "https://your-project.supabase.co",
-  "supabaseAnonKey": "your-anon-key",
-  "voyageApiKey": "your-voyage-api-key",
-  "openrouterApiKey": "your-openrouter-api-key"
-}
+fixonce --version
 ```
 
 ### Environment variables
 
-Alternatively, export environment variables in your shell or shell profile (e.g. `~/.zshrc`, `~/.bashrc`):
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `FIXONCE_API_URL` | `https://fixonce.supabase.co` | Backend API base URL |
+
+---
+
+## Quick start
+
+### 1. Authenticate
 
 ```bash
-export FIXONCE_SUPABASE_URL=https://your-project.supabase.co
-export FIXONCE_SUPABASE_ANON_KEY=your-anon-key
-export FIXONCE_VOYAGE_API_KEY=your-voyage-api-key
-export FIXONCE_OPENROUTER_API_KEY=your-openrouter-api-key
+# Browser-based OAuth (GitHub)
+fixonce login
+
+# Machine-to-machine challenge-response (headless environments)
+fixonce auth
 ```
 
-Environment variables take priority over the settings file, so you can use them for per-project overrides.
-
-| Variable                     | Settings key       | Description                        | Where to get it                                                               |
-| ---------------------------- | ------------------ | ---------------------------------- | ----------------------------------------------------------------------------- |
-| `FIXONCE_SUPABASE_URL`       | `supabaseUrl`      | Your Supabase project URL          | [Supabase dashboard](https://supabase.com/dashboard) → Project Settings → API |
-| `FIXONCE_SUPABASE_ANON_KEY`  | `supabaseAnonKey`  | Your Supabase anonymous key        | Same page as above                                                            |
-| `FIXONCE_VOYAGE_API_KEY`     | `voyageApiKey`     | Voyage AI API key (for embeddings) | [Voyage AI dashboard](https://dashboard.voyageai.com/organization/api-keys)   |
-| `FIXONCE_OPENROUTER_API_KEY` | `openrouterApiKey` | OpenRouter API key (for LLM calls) | [OpenRouter settings](https://openrouter.ai/settings/keys)                    |
-
-When configuring the MCP server, you can also pass these directly via the `env` block in your settings (see [MCP Server](#mcp-server-recommended-for-claude-code) below).
-
-## Database Setup
-
-FixOnce stores memories in a Supabase Postgres database with pgvector. Run the SQL migrations in order against your Supabase project — either via the [SQL editor](https://supabase.com/dashboard) or the Supabase CLI:
+### 2. Create your first memory
 
 ```bash
-# Migrations are in packages/storage/migrations/
-# Run them in order: 001_extensions.sql through 009_hybrid_search_rpc.sql
+fixonce create \
+  --title "Always use parameterised queries for SQL" \
+  --content "Raw string interpolation in SQL queries leads to injection. Use ? or $1 placeholders and pass values as bound parameters." \
+  --summary "SQL injection prevention via parameterised queries." \
+  --type best_practice \
+  --source manual \
+  --language sql
 ```
 
-The migrations create:
-
-- pgvector and uuid-ossp extensions
-- `memory`, `feedback`, and `activity_log` tables
-- Full-text search with weighted tsvector
-- HNSW index for vector similarity
-- Hybrid search RPC function (Reciprocal Rank Fusion)
-
-## Usage
-
-### MCP Server (recommended for Claude Code)
-
-Run the MCP server directly:
+### 3. Query memories during a session
 
 ```bash
-npx fixonce-mcp
+fixonce query "SQL injection prevention"
 ```
 
-Or add it to your Claude Code MCP settings (`~/.claude/settings.json` or `.claude/settings.json`):
+### 4. Launch the TUI
+
+```bash
+fixonce tui
+```
+
+### 5. Set up Claude Code hooks (optional but recommended)
+
+```bash
+chmod +x hooks/*.sh
+```
+
+Add to `.claude/settings.json`:
 
 ```json
 {
-  "mcpServers": {
-    "fixonce": {
-      "command": "npx",
-      "args": ["fixonce-mcp"],
-      "env": {
-        "FIXONCE_SUPABASE_URL": "https://your-project.supabase.co",
-        "FIXONCE_SUPABASE_ANON_KEY": "your-anon-key",
-        "FIXONCE_VOYAGE_API_KEY": "your-voyage-api-key",
-        "FIXONCE_OPENROUTER_API_KEY": "your-openrouter-api-key"
-      }
-    }
+  "hooks": {
+    "PreToolUse":        [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/pre-tool-use.sh"}]}],
+    "PostToolUse":       [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/post-tool-use.sh"}]}],
+    "UserPromptSubmit":  [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/user-prompt-submit.sh"}]}],
+    "Stop":              [{"matcher": "", "hooks": [{"type": "command", "command": "hooks/stop.sh"}]}]
   }
 }
 ```
 
-This gives Claude Code access to 7 tools:
+> There is no native `session-start` hook.  Wire it via your shell RC:
+> ```bash
+> alias claude='hooks/session-start.sh && claude'
+> ```
 
-| Tool                         | Description                                               |
-| ---------------------------- | --------------------------------------------------------- |
-| `fixonce_create_memory`      | Store a new memory (correction, gotcha, pattern)          |
-| `fixonce_query`              | Search memories with hybrid search + reranking            |
-| `fixonce_expand`             | Expand an overflow cache key to full memory               |
-| `fixonce_get_memory`         | Retrieve a specific memory by ID                          |
-| `fixonce_update_memory`      | Update an existing memory                                 |
-| `fixonce_feedback`           | Submit feedback on a memory (helpful, outdated, damaging) |
-| `fixonce_detect_environment` | Scan project for component versions                       |
+---
 
-### CLI
+## CLI Reference — all 15 commands
 
-```bash
-# Create a memory from stdin
-echo '{"title":"Use spread for Compact maps","content":"...","summary":"...","memory_type":"gotcha","source_type":"correction","language":"compact"}' | npx fixonce create
+### Authentication
 
-# Search memories
-npx fixonce query "how to handle Compact map lookups"
+| Command | Description |
+|---------|-------------|
+| `fixonce login` | Log in via GitHub OAuth (opens browser) |
+| `fixonce auth` | Authenticate via Ed25519 challenge-response (headless) |
+| `fixonce keys add` | Generate and register a new signing key |
+| `fixonce keys list` | List all registered signing keys |
+| `fixonce keys revoke <key-id>` | Revoke a signing key |
 
-# Detect project environment
-npx fixonce detect
+### Memory CRUD
 
-# Get a specific memory
-npx fixonce get <memory-id>
+| Command | Description |
+|---------|-------------|
+| `fixonce create [FLAGS]` | Create a new memory (see flags below) |
+| `fixonce get <id>` | Retrieve a memory by UUID |
+| `fixonce update <id> [FLAGS]` | Partially update a memory |
+| `fixonce delete <id>` | Soft-delete a memory |
+| `fixonce feedback <id> <helpful\|outdated\|damaging>` | Submit feedback that adjusts the memory's decay/reinforcement scores |
 
-# Configure API keys
-npx fixonce config
+### Intelligence
 
-# All commands support --json for machine-readable output
-npx fixonce query --json "compact compiler errors"
+| Command | Description |
+|---------|-------------|
+| `fixonce query <text>` | Run the full read pipeline (vector search + Claude refinement) |
+| `fixonce lineage <id>` | Show the mutation history chain for a memory |
+| `fixonce analyze <session-log>` | Extract memory candidates from a Claude Code session transcript |
+
+### Environment
+
+| Command | Description |
+|---------|-------------|
+| `fixonce detect` | Detect Midnight ecosystem versions in the current project |
+| `fixonce context` | Gather full project context (versions + git branch + file structure) |
+
+### Utilities
+
+| Command | Description |
+|---------|-------------|
+| `fixonce config` | Display the active CLI configuration |
+| `fixonce tui` | Launch the interactive Ratatui terminal UI |
+| `fixonce hook <event>` | Dispatch a Claude Code lifecycle hook (called by shell scripts) |
+
+### `fixonce create` flags
+
+```
+--title <TITLE>       Memory title (required)
+--content <CONTENT>   Full memory content (required)
+--summary <SUMMARY>   One-sentence summary (required)
+--type <TYPE>         gotcha | best_practice | correction | anti_pattern | discovery
+--source <SOURCE>     correction | observation | pr_feedback | manual | harvested
+--language <LANG>     Programming language tag (e.g. rust, python, typescript)
+--source-url <URL>    Link to the original source or issue
+--repo-url <URL>      Repository URL
+--format <FORMAT>     text | json (output format)
 ```
 
-### Web UI
+### Output formats
 
-```bash
-npx fixonce-web
+Most commands support `--format text` (default) or `--format json`.
+
+---
+
+## Configuration reference
+
+FixOnce reads configuration from environment variables only; there is no
+configuration file.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FIXONCE_API_URL` | Supabase project URL | `https://fixonce.supabase.co` |
+
+Credentials (JWT and Ed25519 keys) are stored exclusively in the OS keyring
+using the `keyring` crate.  They are **never** written to disk in plain text.
+
+---
+
+## Memory model
+
+A memory record captures a piece of developer knowledge:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID | Unique identifier |
+| `title` | string | Short descriptive title |
+| `content` | string | Full knowledge payload |
+| `summary` | string | One-sentence summary for search ranking |
+| `memory_type` | enum | `gotcha`, `best_practice`, `correction`, `anti_pattern`, `discovery` |
+| `source_type` | enum | `correction`, `observation`, `pr_feedback`, `manual`, `harvested` |
+| `language` | string? | Programming language tag |
+| `decay_score` | float | Relevance weight (1.0 = fresh, approaches 0.0 over time) |
+| `reinforcement_score` | float | Boosted by helpful feedback |
+| `embedding_status` | enum | `complete`, `pending`, `failed` |
+| `pipeline_status` | enum | `complete`, `incomplete` |
+
+### Decay and reinforcement
+
+Memories naturally decay with a 30-day half-life:
+
+```
+decay_score = initial × 0.5^(days_elapsed / 30)
 ```
 
-The dashboard provides:
+Positive feedback (`helpful`) reinforces the score; `damaging` feedback
+reduces it.  When the decay score drops below `0.1` the memory is eligible
+for soft-deletion.
 
-- Memory search and browsing
-- Memory creation and editing
-- Feedback submission
-- Real-time activity stream (SSE)
+---
 
-### Claude Code Hooks (automatic surfacing)
+## Hook behaviour
 
-If you're developing FixOnce locally, copy the example settings to enable automatic memory surfacing during sessions:
+| Hook | Trigger | Action |
+|------|---------|--------|
+| `session-start` | Session begins | Surfaces top 3 critical memories |
+| `user-prompt-submit` | User submits prompt | Injects top 5 relevant memories |
+| `pre-tool-use` | Before tool executes (similarity > 0.7) | Warns on anti-pattern matches |
+| `post-tool-use` | After tool executes (similarity > 0.5) | Advises on related memories |
+| `stop` | Session ends | Surfaces session-end reminders |
 
-```bash
-cp apps/hooks/settings.example.json .claude/settings.json
-```
+All hooks enforce a **3-second hard timeout** and always exit `0` — they are
+warn-only and never block the agent.
 
-This registers 5 hooks:
+---
 
-| Hook               | When                | What                                            |
-| ------------------ | ------------------- | ----------------------------------------------- |
-| `SessionStart`     | Session begins      | Detects environment, surfaces critical memories |
-| `UserPromptSubmit` | User sends a prompt | Quick-searches for relevant memories            |
-| `PreToolUse`       | Before Write/Edit   | Blocks if anti-pattern matched (score > 0.7)    |
-| `PostToolUse`      | After Write/Edit    | Warns if anti-pattern matched (score > 0.5)     |
-| `Stop`             | Session ends        | Surfaces final critical reminders               |
+## Development
 
-## Developing
+### Build
 
 ```bash
-git clone https://github.com/aaronbassett/fixonce.git
-cd fixonce
-pnpm install
-pnpm build
+cargo build --workspace
 ```
 
-## Project Structure
+### Test
 
-| Package               | npm           | Description                                                                   |
-| --------------------- | ------------- | ----------------------------------------------------------------------------- |
-| `@fixonce/shared`     |               | Types, Zod v4 schemas, enums, version keys, structured errors                 |
-| `@fixonce/storage`    |               | Supabase client, CRUD operations, hybrid search, Voyage AI embeddings         |
-| `@fixonce/pipeline`   |               | Write pipeline (quality gate, dedup), read pipeline (rewrite, search, rerank) |
-| `@fixonce/activity`   |               | Cross-cutting activity logging with SSE pub-sub                               |
-| `@fixonce/cli`        | `fixonce`     | 10 commands for terminal-based management                                     |
-| `@fixonce/mcp-server` | `fixonce-mcp` | MCP server with 7 tools for Claude Code                                       |
-| `@fixonce/web`        | `fixonce-web` | React 19 + Vite frontend, Express 5 backend                                   |
-| `@fixonce/hooks`      |               | 5 Claude Code lifecycle hooks                                                 |
+```bash
+cargo test --workspace
+```
+
+The test suite includes:
+
+- **Unit tests** inline in every module (`#[cfg(test)]`)
+- **Integration tests** in `crates/fixonce-core/tests/`
+  - `e2e_memory_lifecycle.rs` — memory create/serialize/format/decay cycle
+  - `e2e_auth_flow.rs` — JWT expiry, keypair generation, nonce signing
+  - `e2e_write_pipeline.rs` — credential detection, quality gate, dedup, enrichment
+  - `e2e_dynamics.rs` — contradiction resolution, decay simulation, lineage chains
+  - `e2e_detection.rs` — Midnight version detection, project context gathering
+  - `bench_hot_cache.rs` — performance assertions (insert+query 50 items < 50ms)
+
+### Lint
+
+```bash
+cargo clippy --workspace -- -D warnings
+```
+
+### Format
+
+```bash
+cargo fmt --all
+```
+
+---
+
+## Contributing
+
+1. Fork the repository and create a feature branch from `main`.
+2. Write tests for every new behaviour — the project targets 100% logical
+   coverage of pure functions.
+3. Run `cargo test --workspace` and `cargo clippy --workspace -- -D warnings`
+   before opening a PR.
+4. Keep commits small and focused.  Commit messages follow the Conventional
+   Commits convention: `feat:`, `fix:`, `test:`, `docs:`, `chore:`, `refactor:`.
+5. PRs that add network-dependent code must mock the external calls in tests.
+
+All contributions are welcome: bug fixes, documentation, new memory types,
+additional language detection hints, and performance improvements.
+
+---
 
 ## License
 
-MIT
+MIT — see `LICENSE`.

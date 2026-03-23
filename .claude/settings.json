@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat > \"$CLAUDE_PROJECT_DIR/HOOK_PAYLOAD.json\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

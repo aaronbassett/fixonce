@@ -233,13 +233,26 @@ mod tests {
     }
 
     #[test]
+    #[serial_test::serial(keyring)]
     fn load_token_returns_unauthenticated_when_no_token() {
-        // The test environment has no keyring token; this should map to
-        // HookError::Unauthenticated or HookError::Auth.
+        // RAII guard ensures cleanup even on panic.
+        struct Guard;
+        impl Drop for Guard {
+            fn drop(&mut self) {
+                std::env::remove_var("FIXONCE_KEYRING_SERVICE");
+            }
+        }
+
+        // Use an isolated keyring service so this test does not depend on
+        // whether the developer has stored real credentials.
+        let service = format!("fixonce-test-{}", std::process::id());
+        std::env::set_var("FIXONCE_KEYRING_SERVICE", &service);
+        let _guard = Guard;
+
         let result = load_token();
         assert!(
             result.is_err(),
-            "should error when no token is stored in test environment"
+            "should error when no token is stored in isolated keyring"
         );
     }
 }

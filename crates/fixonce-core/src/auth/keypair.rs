@@ -8,9 +8,6 @@ use rand_core::OsRng;
 
 use super::AuthError;
 
-/// The keyring service name used for all fixonce key material.
-const KEYRING_SERVICE: &str = "fixonce";
-
 /// Generate a fresh Ed25519 keypair.
 ///
 /// # Errors
@@ -34,7 +31,7 @@ pub fn generate_keypair() -> Result<(SigningKey, VerifyingKey), AuthError> {
 pub fn store_keypair(signing_key: &SigningKey, label: &str) -> Result<(), AuthError> {
     let seed_hex = hex::encode(signing_key.to_bytes());
 
-    let entry = Entry::new(KEYRING_SERVICE, label)
+    let entry = Entry::new(&super::keyring_service(), label)
         .map_err(|e| AuthError::KeyringError(format!("cannot create keyring entry: {e}")))?;
 
     entry
@@ -51,7 +48,7 @@ pub fn store_keypair(signing_key: &SigningKey, label: &str) -> Result<(), AuthEr
 /// Returns [`AuthError::KeyringError`] if the key is not found or the stored
 /// data is corrupt.
 pub fn load_keypair(label: &str) -> Result<SigningKey, AuthError> {
-    let entry = Entry::new(KEYRING_SERVICE, label)
+    let entry = Entry::new(&super::keyring_service(), label)
         .map_err(|e| AuthError::KeyringError(format!("cannot create keyring entry: {e}")))?;
 
     let seed_hex = entry
@@ -77,7 +74,7 @@ pub fn load_keypair(label: &str) -> Result<SigningKey, AuthError> {
 ///
 /// Returns [`AuthError::KeyringError`] if deletion fails.
 pub fn delete_keypair(label: &str) -> Result<(), AuthError> {
-    let entry = Entry::new(KEYRING_SERVICE, label)
+    let entry = Entry::new(&super::keyring_service(), label)
         .map_err(|e| AuthError::KeyringError(format!("cannot create keyring entry: {e}")))?;
 
     entry

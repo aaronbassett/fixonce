@@ -10,7 +10,6 @@ use serde::Deserialize;
 
 use super::AuthError;
 
-const KEYRING_SERVICE: &str = "fixonce";
 const KEYRING_TOKEN_LABEL: &str = "jwt";
 
 /// Manages the local JWT lifecycle (store, load, expiry, clear).
@@ -98,7 +97,7 @@ impl TokenManager {
     // --- private helpers ---
 
     fn entry() -> Result<Entry, AuthError> {
-        Entry::new(KEYRING_SERVICE, KEYRING_TOKEN_LABEL)
+        Entry::new(&super::keyring_service(), KEYRING_TOKEN_LABEL)
             .map_err(|e| AuthError::KeyringError(format!("cannot access keyring: {e}")))
     }
 
@@ -122,6 +121,8 @@ impl Default for TokenManager {
 
 #[cfg(test)]
 mod tests {
+    use serial_test::serial;
+
     use super::*;
 
     /// Build a minimal JWT with the given `exp` claim.
@@ -134,6 +135,27 @@ mod tests {
         };
         let payload = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(&payload_json);
         format!("{header}.{payload}.fakesig")
+    }
+
+    /// RAII guard that restores the keyring env var on drop (even on panic).
+    struct KeyringGuard;
+
+    impl Drop for KeyringGuard {
+        fn drop(&mut self) {
+            let _ = TokenManager::new().clear_token();
+            std::env::remove_var("FIXONCE_KEYRING_SERVICE");
+        }
+    }
+
+    /// Set up an isolated keyring service for a test, returning the service
+    /// name and a guard that cleans up on drop (panic-safe).
+    /// Must be paired with `#[serial(keyring)]` to prevent env var races.
+    fn setup_test_keyring() -> (String, KeyringGuard) {
+        let service = format!("fixonce-test-{}", std::process::id());
+        std::env::set_var("FIXONCE_KEYRING_SERVICE", &service);
+        // Ensure a clean slate: clear any leftover token.
+        let _ = TokenManager::new().clear_token();
+        (service, KeyringGuard)
     }
 
     #[test]
@@ -160,5 +182,49 @@ mod tests {
     fn garbage_token_is_expired() {
         let mgr = TokenManager::new();
         assert!(mgr.is_expired("not.a.jwt"));
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn isolated_load_returns_none_when_no_token() {
+        let (_service, _guard) = setup_test_keyring();
+        let mgr = TokenManager::new();
+        // In an isolated keyring service, there should be no stored token
+        // regardless of whether the developer has real credentials.
+        let result = mgr.load_token();
+        match result {
+            Ok(None) | Err(_) => {} // No entry or backend unavailable — both fine.
+            Ok(Some(_)) => panic!("isolated keyring should not contain a token"),
+        }
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn override_does_not_leak_to_default_service() {
+        {
+            let (test_service, _guard) = setup_test_keyring();
+            assert_ne!(
+                test_service, "fixonce",
+                "test service must differ from default"
+            );
+        }
+        // After guard drops, the env var is removed and service returns to default.
+        assert_eq!(super::super::keyring_service(), "fixonce");
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn keyring_service_reads_env_var() {
+        let _guard = KeyringGuard;
+        std::env::set_var("FIXONCE_KEYRING_SERVICE", "custom-service");
+        assert_eq!(super::super::keyring_service(), "custom-service");
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn keyring_service_defaults_to_fixonce() {
+        // Ensure env var is not set, then check default.
+        std::env::remove_var("FIXONCE_KEYRING_SERVICE");
+        assert_eq!(super::super::keyring_service(), "fixonce");
     }
 }

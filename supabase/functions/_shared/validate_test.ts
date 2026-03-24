@@ -3,11 +3,7 @@
  *
  * These are pure unit tests; no network or Supabase connection needed.
  */
-import {
-  assertEquals,
-  assertInstanceOf,
-  assertThrows,
-} from "@std/assert";
+import { assertEquals, assertInstanceOf, assertThrows } from "@std/assert";
 import { z } from "zod";
 import { validateBody, ValidationError } from "./validate.ts";
 

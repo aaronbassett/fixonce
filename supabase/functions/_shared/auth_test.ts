@@ -9,11 +9,7 @@
  * header format, and missing server env vars. The Supabase network
  * call is never reached in these failure cases.
  */
-import {
-  assertEquals,
-  assertInstanceOf,
-  assertRejects,
-} from "@std/assert";
+import { assertEquals, assertInstanceOf, assertRejects } from "@std/assert";
 
 // We import verifyAuth after manipulating the test environment so that
 // the module-level code does not attempt a real network connection.

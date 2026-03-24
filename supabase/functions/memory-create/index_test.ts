@@ -10,10 +10,7 @@
  * We also test the error response structure produced by _shared/errors.ts
  * and the malformed-JSON handling path (EC-10).
  */
-import {
-  assertEquals,
-  assertStringIncludes,
-} from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { z } from "zod";
 import { validateBody, ValidationError } from "../_shared/validate.ts";
 import { errorResponse } from "../_shared/errors.ts";

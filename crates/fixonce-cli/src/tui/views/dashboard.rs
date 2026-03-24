@@ -142,21 +142,13 @@ fn render_heatmap_panel(f: &mut Frame, app: &App, area: Rect) {
     let inner = block.inner(area);
     f.render_widget(block, area);
 
-    match app.dashboard_data.as_loaded() {
-        Some(data) => {
-            crate::tui::widgets::heatmap::render_heatmap(
-                f,
-                inner,
-                &data.heatmap,
-                app.heatmap_mode,
-            );
-        }
-        None => {
-            let loading = Paragraph::new("Loading heatmap...")
-                .alignment(Alignment::Center)
-                .style(Style::default().fg(Color::DarkGray));
-            f.render_widget(loading, inner);
-        }
+    if let Some(data) = app.dashboard_data.as_loaded() {
+        crate::tui::widgets::heatmap::render_heatmap(f, inner, &data.heatmap, app.heatmap_mode);
+    } else {
+        let loading = Paragraph::new("Loading heatmap...")
+            .alignment(Alignment::Center)
+            .style(Style::default().fg(Color::DarkGray));
+        f.render_widget(loading, inner);
     }
 }
 
@@ -175,8 +167,7 @@ fn render_total_memories(f: &mut Frame, app: &App, area: Rect) {
     let count = app
         .dashboard_data
         .as_loaded()
-        .map(|d| d.stats.total_memories)
-        .unwrap_or(0);
+        .map_or(0, |d| d.stats.total_memories);
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -210,8 +201,7 @@ fn render_stats_bottom_row(f: &mut Frame, app: &App, area: Rect) {
     let searches = app
         .dashboard_data
         .as_loaded()
-        .map(|d| d.stats.searches_24h.to_string())
-        .unwrap_or_else(|| "—".to_owned());
+        .map_or_else(|| "—".to_owned(), |d| d.stats.searches_24h.to_string());
 
     let searches_widget = Paragraph::new(Span::styled(
         searches,
@@ -219,7 +209,11 @@ fn render_stats_bottom_row(f: &mut Frame, app: &App, area: Rect) {
             .fg(Color::Rgb(107, 196, 255))
             .add_modifier(Modifier::BOLD),
     ))
-    .block(Block::default().borders(Borders::ALL).title(" Searches 24h "))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Searches 24h "),
+    )
     .alignment(Alignment::Center);
 
     f.render_widget(searches_widget, cols[0]);
@@ -228,8 +222,7 @@ fn render_stats_bottom_row(f: &mut Frame, app: &App, area: Rect) {
     let reports = app
         .dashboard_data
         .as_loaded()
-        .map(|d| d.stats.reports_24h.to_string())
-        .unwrap_or_else(|| "—".to_owned());
+        .map_or_else(|| "—".to_owned(), |d| d.stats.reports_24h.to_string());
 
     let reports_widget = Paragraph::new(Span::styled(
         reports,
@@ -237,7 +230,11 @@ fn render_stats_bottom_row(f: &mut Frame, app: &App, area: Rect) {
             .fg(Color::Rgb(255, 107, 107))
             .add_modifier(Modifier::BOLD),
     ))
-    .block(Block::default().borders(Borders::ALL).title(" Reports 24h "))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Reports 24h "),
+    )
     .alignment(Alignment::Center);
 
     f.render_widget(reports_widget, cols[1]);
@@ -265,10 +262,7 @@ fn render_memory_list(f: &mut Frame, app: &App, area: Rect) {
             .fg(Color::White)
             .add_modifier(Modifier::BOLD),
     );
-    let header_right = Span::styled(
-        "[;] prev  ['] next ",
-        Style::default().fg(Color::DarkGray),
-    );
+    let header_right = Span::styled("[;] prev  ['] next ", Style::default().fg(Color::DarkGray));
     let header_line = Line::from(vec![header_left, header_right]);
     let header = Paragraph::new(header_line).alignment(Alignment::Left);
     f.render_widget(header, rows[0]);
@@ -346,44 +340,37 @@ fn truncate_title(title: &str, max_len: usize) -> String {
 
 fn build_list_items(app: &App) -> Vec<ListItem<'static>> {
     match app.list_mode {
-        ListMode::RecentlyCreated => {
-            app.memories
-                .iter()
-                .take(20)
-                .map(|m| {
-                    let type_str = m.memory_type.to_string();
-                    let color = memory_type_color_from_enum(&m.memory_type);
-                    let badge = Span::styled(
-                        format!("[{type_str}]"),
-                        Style::default().fg(color),
-                    );
-                    let title = truncate_title(&m.title, 40);
-                    let decay = format!("  {:.2}", m.decay_score);
-                    let line = Line::from(vec![
-                        badge,
-                        Span::raw(" "),
-                        Span::styled(title, Style::default().fg(Color::White)),
-                        Span::styled(decay, Style::default().fg(Color::DarkGray)),
-                    ]);
-                    ListItem::new(line)
-                })
-                .collect()
-        }
+        ListMode::RecentlyCreated => app
+            .memories
+            .iter()
+            .take(20)
+            .map(|m| {
+                let type_str = m.memory_type.to_string();
+                let color = memory_type_color_from_enum(&m.memory_type);
+                let badge = Span::styled(format!("[{type_str}]"), Style::default().fg(color));
+                let title = truncate_title(&m.title, 40);
+                let decay = format!("  {:.2}", m.decay_score);
+                let line = Line::from(vec![
+                    badge,
+                    Span::raw(" "),
+                    Span::styled(title, Style::default().fg(Color::White)),
+                    Span::styled(decay, Style::default().fg(Color::DarkGray)),
+                ]);
+                ListItem::new(line)
+            })
+            .collect(),
         ListMode::RecentlyViewed => {
             let views = app
                 .dashboard_data
                 .as_loaded()
-                .map(|d| d.recent_views.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[][..], |d| d.recent_views.as_slice());
             views
                 .iter()
                 .take(20)
                 .map(|rv| {
                     let color = memory_type_color(&rv.memory_type);
-                    let badge = Span::styled(
-                        format!("[{}]", rv.memory_type),
-                        Style::default().fg(color),
-                    );
+                    let badge =
+                        Span::styled(format!("[{}]", rv.memory_type), Style::default().fg(color));
                     let title = truncate_title(&rv.title, 35);
                     let viewed = format!("  last viewed: {}", rv.last_viewed);
                     let line = Line::from(vec![
@@ -400,17 +387,14 @@ fn build_list_items(app: &App) -> Vec<ListItem<'static>> {
             let accessed = app
                 .dashboard_data
                 .as_loaded()
-                .map(|d| d.most_accessed.as_slice())
-                .unwrap_or(&[]);
+                .map_or(&[][..], |d| d.most_accessed.as_slice());
             accessed
                 .iter()
                 .take(20)
                 .map(|ma| {
                     let color = memory_type_color(&ma.memory_type);
-                    let badge = Span::styled(
-                        format!("[{}]", ma.memory_type),
-                        Style::default().fg(color),
-                    );
+                    let badge =
+                        Span::styled(format!("[{}]", ma.memory_type), Style::default().fg(color));
                     let title = truncate_title(&ma.title, 35);
                     let count = format!("  accessed: {}x", ma.access_count);
                     let line = Line::from(vec![
@@ -445,10 +429,7 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
     let tabs: &[(&str, bool)] = &[
         ("[1] Dashboard", matches!(app.current_view, View::Dashboard)),
         ("[2] Search", matches!(app.current_view, View::Search)),
-        (
-            "[3] Create",
-            matches!(app.current_view, View::CreateForm),
-        ),
+        ("[3] Create", matches!(app.current_view, View::CreateForm)),
         ("[4] Keys", matches!(app.current_view, View::Keys)),
         ("[q] Quit", false),
     ];

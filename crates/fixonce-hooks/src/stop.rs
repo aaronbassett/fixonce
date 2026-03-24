@@ -7,7 +7,6 @@ use std::path::Path;
 
 use fixonce_core::{
     api::{search::search_memories, ApiClient},
-    auth::token::TokenManager,
     detect::midnight::detect_midnight_versions,
     memory::types::{MemoryType, SearchMemoryRequest},
 };
@@ -27,11 +26,11 @@ use crate::HookError;
 ///
 /// # Errors
 ///
-/// Returns [`HookError::Unauthenticated`] when no token is stored (EC-43).
+/// Returns [`HookError::Unauthenticated`] when no token is stored or the token has expired (EC-43).
 /// Returns [`HookError::Api`] on network failure.
 pub async fn on_stop(api_url: &str) -> Result<String, HookError> {
-    // EC-43: load token; skip silently when absent.
-    let token = load_token()?;
+    // EC-43: load token; skip silently when absent or expired.
+    let token = crate::load_valid_token()?;
 
     let client = ApiClient::new(api_url)
         .map_err(HookError::Api)?
@@ -76,15 +75,6 @@ pub async fn on_stop(api_url: &str) -> Result<String, HookError> {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Load the JWT from the OS keyring, mapping missing token to [`HookError::Unauthenticated`].
-fn load_token() -> Result<String, HookError> {
-    let mgr = TokenManager::new();
-    match mgr.load_token().map_err(HookError::Auth)? {
-        Some(t) => Ok(t),
-        None => Err(HookError::Unauthenticated),
-    }
-}
 
 /// Build a session-end query from detected Midnight versions.
 fn build_stop_query(versions: &fixonce_core::detect::midnight::MidnightVersions) -> String {

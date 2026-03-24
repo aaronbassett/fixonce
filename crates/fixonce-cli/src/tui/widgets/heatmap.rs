@@ -15,18 +15,17 @@ use crate::tui::app::HeatmapMode;
 
 /// Color levels for the heatmap (GitHub-style green palette).
 const LEVELS: [(Color, char); 5] = [
-    (Color::Rgb(22, 42, 22), '░'),   // Level 0: no activity
-    (Color::Rgb(14, 68, 41), '▒'),   // Level 1
-    (Color::Rgb(0, 109, 50), '▓'),   // Level 2
-    (Color::Rgb(38, 166, 65), '█'),  // Level 3
-    (Color::Rgb(57, 211, 83), '█'),  // Level 4
+    (Color::Rgb(22, 42, 22), '░'),  // Level 0: no activity
+    (Color::Rgb(14, 68, 41), '▒'),  // Level 1
+    (Color::Rgb(0, 109, 50), '▓'),  // Level 2
+    (Color::Rgb(38, 166, 65), '█'), // Level 3
+    (Color::Rgb(57, 211, 83), '█'), // Level 4
 ];
 
 /// Number of days in a given month/year.
 fn days_in_month(year: i32, month: u32) -> u32 {
     match month {
         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
-        4 | 6 | 9 | 11 => 30,
         2 => {
             if (year % 4 == 0 && year % 100 != 0) || year % 400 == 0 {
                 29
@@ -76,17 +75,19 @@ fn current_year_month() -> (i32, u32) {
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
-        .as_secs() as i64;
+        .as_secs()
+        .cast_signed();
 
     // Days since epoch (1970-01-01).
+    #[allow(clippy::cast_possible_truncation)]
     let days = (secs / 86400) as i32;
 
     // Civil-date algorithm from Howard Hinnant (public domain).
     let z = days + 719_468;
     let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
-    let doe = (z - era * 146_097) as u32;
+    let doe = (z - era * 146_097).cast_unsigned();
     let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
-    let y = yoe as i32 + era * 400;
+    let y = yoe.cast_signed() + era * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
     let m = if mp < 10 { mp + 3 } else { mp - 9 };
@@ -116,12 +117,7 @@ fn last_6_months(year: i32, month: u32) -> Vec<(i32, u32)> {
 /// Render the activity heatmap into the given area.
 ///
 /// This is a standalone render function (not a `Widget` impl) for simplicity.
-pub fn render_heatmap(
-    f: &mut Frame,
-    area: Rect,
-    entries: &[HeatmapEntry],
-    mode: HeatmapMode,
-) {
+pub fn render_heatmap(f: &mut Frame, area: Rect, entries: &[HeatmapEntry], mode: HeatmapMode) {
     let action = mode.action();
 
     // Build a map from (year, month, day) -> count for the selected action.
@@ -148,10 +144,8 @@ pub fn render_heatmap(
     for &(y, m) in &months {
         let max_day = days_in_month(y, m);
         let label = format!("{} ", month_abbr(m));
-        let mut spans: Vec<Span<'static>> = vec![Span::styled(
-            label,
-            Style::default().fg(Color::DarkGray),
-        )];
+        let mut spans: Vec<Span<'static>> =
+            vec![Span::styled(label, Style::default().fg(Color::DarkGray))];
 
         for day in 1..=31u32 {
             if day > max_day {
@@ -161,13 +155,14 @@ pub fn render_heatmap(
                 let level = if count == 0 {
                     0
                 } else {
-                    ((count * 4) / max_count).clamp(1, 4) as usize
+                    // SAFETY: value clamped to 1..=4, no sign loss or truncation.
+                    #[allow(clippy::cast_sign_loss)]
+                    {
+                        ((count * 4) / max_count).clamp(1, 4) as usize
+                    }
                 };
                 let (color, ch) = LEVELS[level];
-                spans.push(Span::styled(
-                    ch.to_string(),
-                    Style::default().fg(color),
-                ));
+                spans.push(Span::styled(ch.to_string(), Style::default().fg(color)));
             }
         }
 
@@ -176,6 +171,7 @@ pub fn render_heatmap(
 
     // Legend line — right-aligned via padding.
     let legend_text = "Less ░▒▓██ More";
+    #[allow(clippy::cast_possible_truncation)]
     let legend_width = legend_text.chars().count() as u16;
     let avail = area.width.saturating_sub(1);
     let pad = avail.saturating_sub(legend_width) as usize;

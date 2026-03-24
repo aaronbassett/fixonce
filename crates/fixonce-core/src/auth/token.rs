@@ -55,9 +55,8 @@ impl TokenManager {
         let creds = Credentials {
             access_token: Some(token.to_owned()),
         };
-        let json = serde_json::to_string_pretty(&creds).map_err(|e| {
-            AuthError::KeyringError(format!("cannot serialise credentials: {e}"))
-        })?;
+        let json = serde_json::to_string_pretty(&creds)
+            .map_err(|e| AuthError::KeyringError(format!("cannot serialise credentials: {e}")))?;
 
         fs::write(&path, &json)
             .map_err(|e| AuthError::KeyringError(format!("cannot write credentials: {e}")))?;
@@ -203,5 +202,68 @@ mod tests {
     fn garbage_token_is_expired() {
         let mgr = TokenManager::new();
         assert!(mgr.is_expired("not.a.jwt"));
+    }
+
+    use serial_test::serial;
+
+    /// RAII guard that restores the keyring env var on drop (even on panic).
+    struct KeyringGuard;
+
+    impl Drop for KeyringGuard {
+        fn drop(&mut self) {
+            let _ = TokenManager::new().clear_token();
+            std::env::remove_var("FIXONCE_KEYRING_SERVICE");
+        }
+    }
+
+    /// Set up an isolated keyring service for a test, returning the service
+    /// name and a guard that cleans up on drop (panic-safe).
+    /// Must be paired with `#[serial(keyring)]` to prevent env var races.
+    fn setup_test_keyring() -> (String, KeyringGuard) {
+        let service = format!("fixonce-test-{}", std::process::id());
+        std::env::set_var("FIXONCE_KEYRING_SERVICE", &service);
+        // Ensure a clean slate: clear any leftover token.
+        let _ = TokenManager::new().clear_token();
+        (service, KeyringGuard)
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn isolated_load_returns_none_when_no_token() {
+        let (_service, _guard) = setup_test_keyring();
+        let mgr = TokenManager::new();
+        let result = mgr.load_token();
+        match result {
+            Ok(None) | Err(_) => {}
+            Ok(Some(_)) => panic!("isolated keyring should not contain a token"),
+        }
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn override_does_not_leak_to_default_service() {
+        {
+            let (test_service, _guard) = setup_test_keyring();
+            assert_ne!(
+                test_service, "fixonce",
+                "test service must differ from default"
+            );
+        }
+        assert_eq!(super::super::keyring_service(), "fixonce");
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn keyring_service_reads_env_var() {
+        let _guard = KeyringGuard;
+        std::env::set_var("FIXONCE_KEYRING_SERVICE", "custom-service");
+        assert_eq!(super::super::keyring_service(), "custom-service");
+    }
+
+    #[test]
+    #[serial(keyring)]
+    fn keyring_service_defaults_to_fixonce() {
+        std::env::remove_var("FIXONCE_KEYRING_SERVICE");
+        assert_eq!(super::super::keyring_service(), "fixonce");
     }
 }

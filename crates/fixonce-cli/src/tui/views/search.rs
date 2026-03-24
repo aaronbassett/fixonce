@@ -93,14 +93,9 @@ fn render_type_pills(f: &mut Frame, app: &App, area: Rect) {
             let style = if *st == app.search_type {
                 Style::default().fg(Color::Black).bg(Color::Cyan)
             } else {
-                Style::default()
-                    .fg(Color::Gray)
-                    .bg(Color::DarkGray)
+                Style::default().fg(Color::Gray).bg(Color::DarkGray)
             };
-            vec![
-                Span::styled(format!(" {label} "), style),
-                Span::raw(" "),
-            ]
+            vec![Span::styled(format!(" {label} "), style), Span::raw(" ")]
         })
         .collect();
 
@@ -184,10 +179,7 @@ fn render_results_list(
             let mem = &hit.memory;
             let type_str = mem.memory_type.to_string();
             let type_color = memory_type_color(&mem.memory_type);
-            let badge = Span::styled(
-                format!("[{type_str}]"),
-                Style::default().fg(type_color),
-            );
+            let badge = Span::styled(format!("[{type_str}]"), Style::default().fg(type_color));
             let title = truncate(mem.title.as_str(), 50);
             let score = format!("{:.4}", hit.similarity);
 
@@ -228,10 +220,7 @@ fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
     let tabs: &[(&str, bool)] = &[
         ("[1] Dashboard", matches!(app.current_view, View::Dashboard)),
         ("[2] Search", matches!(app.current_view, View::Search)),
-        (
-            "[3] Create",
-            matches!(app.current_view, View::CreateForm),
-        ),
+        ("[3] Create", matches!(app.current_view, View::CreateForm)),
         ("[4] Keys", matches!(app.current_view, View::Keys)),
         ("[q] Quit", false),
     ];

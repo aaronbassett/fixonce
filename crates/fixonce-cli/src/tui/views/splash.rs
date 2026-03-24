@@ -20,8 +20,8 @@ use ratatui::{
     widgets::Paragraph,
     Terminal,
 };
-use tui_big_text::{BigText, PixelSize};
 use std::io;
+use tui_big_text::{BigText, PixelSize};
 
 // Rainbow gradient colours applied per-character across "FixOnce".
 const RAINBOW: [Color; 7] = [
@@ -61,8 +61,8 @@ pub fn show_unauthenticated_splash() -> Result<()> {
             .direction(Direction::Vertical)
             .constraints([
                 Constraint::Percentage(30),
-                Constraint::Length(8),   // BigText::Full uses 8 rows
-                Constraint::Length(2),   // subtitle
+                Constraint::Length(8), // BigText::Full uses 8 rows
+                Constraint::Length(2), // subtitle
                 Constraint::Min(0),
             ])
             .split(area);
@@ -90,11 +90,10 @@ pub fn show_unauthenticated_splash() -> Result<()> {
         f.render_widget(big, chunks[1]);
 
         // Subtitle.
-        let subtitle = Paragraph::new(
-            "Exit and login with `fixonce login` before launching the TUI",
-        )
-        .style(Style::default().fg(Color::DarkGray))
-        .alignment(Alignment::Center);
+        let subtitle =
+            Paragraph::new("Exit and login with `fixonce login` before launching the TUI")
+                .style(Style::default().fg(Color::DarkGray))
+                .alignment(Alignment::Center);
 
         f.render_widget(subtitle, chunks[2]);
     })?;
@@ -112,11 +111,7 @@ pub fn show_unauthenticated_splash() -> Result<()> {
     // Terminal teardown
     // -----------------------------------------------------------------------
     disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        cursor::Show
-    )?;
+    execute!(terminal.backend_mut(), LeaveAlternateScreen, cursor::Show)?;
 
     Ok(())
 }

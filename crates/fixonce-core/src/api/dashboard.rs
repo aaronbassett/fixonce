@@ -54,6 +54,11 @@ pub struct DashboardData {
 }
 
 /// Fetch all dashboard data in one request.
+///
+/// # Errors
+///
+/// Returns [`ApiError`] on network failure, authentication problems, or if the
+/// server rejects the request.
 #[instrument(skip(client))]
 pub async fn fetch_dashboard(client: &ApiClient) -> Result<DashboardData, ApiError> {
     let response = client

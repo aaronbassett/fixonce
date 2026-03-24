@@ -1,45 +1,30 @@
-/// GitHub OAuth browser flow.
+/// GitHub OAuth browser flow (backend-brokered).
 ///
-/// Opens the user's default browser to the GitHub OAuth consent page, spins up
-/// a short-lived local HTTP server to receive the callback, then exchanges the
-/// authorisation code for a JWT via the Supabase auth edge function.
-use std::collections::HashMap;
-
-use sha2::{Digest, Sha256};
+/// The CLI never calls Supabase auth endpoints directly.  Instead it asks the
+/// `FixOnce` backend for the OAuth URL (`auth-login-start`) and sends the
+/// received authorisation code back to the backend for exchange
+/// (`auth-login-exchange`).  This keeps all Supabase auth details — including
+/// the anon key — on the server side.
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 use super::AuthError;
 
-/// Generate a PKCE code verifier (43–128 chars, URL-safe).
-fn generate_code_verifier() -> String {
-    use rand::Rng;
-    let mut rng = rand::rng();
-    let bytes: Vec<u8> = (0..32).map(|_| rng.random::<u8>()).collect();
-    base64_url_encode(&bytes)
-}
-
-/// Compute the S256 code challenge from a code verifier.
-fn compute_code_challenge(verifier: &str) -> String {
-    let digest = Sha256::digest(verifier.as_bytes());
-    base64_url_encode(&digest)
-}
-
-/// Base64-URL encode without padding (per RFC 7636).
-fn base64_url_encode(input: &[u8]) -> String {
-    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-    use base64::Engine;
-    URL_SAFE_NO_PAD.encode(input)
-}
-
-/// Perform the GitHub OAuth flow and return a JWT on success.
+/// Perform the GitHub OAuth flow via the `FixOnce` backend and return a JWT.
+///
+/// 1. Binds a random-port local HTTP server for the OAuth callback.
+/// 2. Asks the backend for the OAuth authorization URL.
+/// 3. Opens the user's browser to that URL.
+/// 4. Waits for the callback with the authorization code.
+/// 5. Sends the code to the backend for exchange.
+/// 6. Returns the JWT access token.
 ///
 /// # Errors
 ///
 /// Returns [`AuthError::OAuthFailed`] when the browser cannot be opened, the
 /// local callback server fails to bind, or the OAuth exchange returns an error.
-/// Returns [`AuthError::HttpError`] when the token-exchange HTTP request fails.
-pub async fn login_with_github(supabase_url: &str, anon_key: &str) -> Result<String, AuthError> {
+/// Returns [`AuthError::HttpError`] when an HTTP request to the backend fails.
+pub async fn login_with_github(api_url: &str) -> Result<String, AuthError> {
     // Bind to a random high port for the local callback server.
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -52,23 +37,17 @@ pub async fn login_with_github(supabase_url: &str, anon_key: &str) -> Result<Str
 
     let redirect_uri = format!("http://127.0.0.1:{port}/callback");
 
-    // PKCE: generate verifier and challenge.
-    let code_verifier = generate_code_verifier();
-    let code_challenge = compute_code_challenge(&code_verifier);
+    // Step 1: Ask the backend for the OAuth authorization URL.
+    let auth_url = fetch_auth_url(api_url, &redirect_uri).await?;
 
-    // Build the GitHub OAuth URL with PKCE parameters.
-    let auth_url = format!(
-        "{supabase_url}/auth/v1/authorize?provider=github&redirect_to={redirect_uri}&flow_type=pkce&code_challenge={code_challenge}&code_challenge_method=S256"
-    );
-
-    // Launch the browser.
+    // Step 2: Launch the browser.
     open::that(&auth_url)
         .map_err(|e| AuthError::OAuthFailed(format!("cannot open browser: {e}")))?;
 
     println!("Opening browser for GitHub OAuth…");
     println!("If the browser did not open, visit:\n  {auth_url}");
 
-    // Wait for the callback request from the browser.
+    // Step 3: Wait for the callback request from the browser.
     let (mut stream, _) = listener
         .accept()
         .await
@@ -96,35 +75,59 @@ pub async fn login_with_github(supabase_url: &str, anon_key: &str) -> Result<Str
     );
     let _ = stream.write_all(html_response.as_bytes()).await;
 
-    // Exchange the authorisation code for a JWT.
-    let jwt = exchange_code_for_jwt(supabase_url, anon_key, &code, &redirect_uri, &code_verifier).await?;
+    // Step 4: Exchange the authorisation code for a JWT via the backend.
+    let jwt = exchange_code_for_jwt(api_url, &code, &redirect_uri).await?;
     Ok(jwt)
 }
 
-/// Exchange an OAuth authorisation `code` for a Supabase JWT.
-async fn exchange_code_for_jwt(
-    supabase_url: &str,
-    anon_key: &str,
-    code: &str,
-    redirect_uri: &str,
-    code_verifier: &str,
-) -> Result<String, AuthError> {
+/// Ask the backend for the OAuth authorization URL.
+async fn fetch_auth_url(api_url: &str, redirect_uri: &str) -> Result<String, AuthError> {
     let client = reqwest::Client::new();
-    let url = format!("{supabase_url}/auth/v1/token?grant_type=pkce");
+    let url = format!("{api_url}/functions/v1/auth-login-start");
 
-    let mut body = HashMap::new();
-    body.insert("auth_code", code);
-    body.insert("code_verifier", code_verifier);
-    body.insert("redirect_uri", redirect_uri);
+    let body = serde_json::json!({ "redirect_uri": redirect_uri });
 
     let response = client
         .post(&url)
-        .header("apikey", anon_key)
         .json(&body)
         .send()
         .await?
         .error_for_status()
-        .map_err(|e| AuthError::OAuthFailed(format!("token exchange HTTP error: {e}")))?;
+        .map_err(|e| AuthError::OAuthFailed(format!("auth-login-start failed: {e}")))?;
+
+    let payload: serde_json::Value = response.json().await?;
+
+    payload["auth_url"]
+        .as_str()
+        .map(ToOwned::to_owned)
+        .ok_or_else(|| {
+            AuthError::OAuthFailed(format!(
+                "auth-login-start response missing auth_url: {payload}"
+            ))
+        })
+}
+
+/// Exchange an OAuth authorisation `code` for a JWT via the backend.
+async fn exchange_code_for_jwt(
+    api_url: &str,
+    code: &str,
+    redirect_uri: &str,
+) -> Result<String, AuthError> {
+    let client = reqwest::Client::new();
+    let url = format!("{api_url}/functions/v1/auth-login-exchange");
+
+    let body = serde_json::json!({
+        "code": code,
+        "redirect_uri": redirect_uri,
+    });
+
+    let response = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await?
+        .error_for_status()
+        .map_err(|e| AuthError::OAuthFailed(format!("auth-login-exchange failed: {e}")))?;
 
     let payload: serde_json::Value = response.json().await?;
 
@@ -133,7 +136,7 @@ async fn exchange_code_for_jwt(
         .map(ToOwned::to_owned)
         .ok_or_else(|| {
             AuthError::OAuthFailed(format!(
-                "token exchange response missing access_token: {payload}"
+                "auth-login-exchange response missing access_token: {payload}"
             ))
         })
 }

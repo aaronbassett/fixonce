@@ -1,0 +1,12 @@
+{
+  "name": "fixonce-web",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "Web UI for FixOnce — shorthand for @fixonce/web",
+  "bin": {
+    "fixonce-web": "./bin.js"
+  },
+  "dependencies": {
+    "@fixonce/web": "workspace:*"
+  }
+}

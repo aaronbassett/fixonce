@@ -1,0 +1,12 @@
+{
+  "name": "fixonce",
+  "version": "0.2.0",
+  "type": "module",
+  "description": "CLI for FixOnce — shorthand for @fixonce/cli",
+  "bin": {
+    "fixonce": "./bin.js"
+  },
+  "dependencies": {
+    "@fixonce/cli": "workspace:*"
+  }
+}

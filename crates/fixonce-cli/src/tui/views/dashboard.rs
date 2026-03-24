@@ -3,150 +3,204 @@
 //! Layout:
 //! ```text
 //!   ┌─────────────────────────────────┐
-//!   │  FixOnce  [search bar]          │  ← title + search
+//!   │  Hero Row (logo + info panel)   │  ← Length(8)
 //!   ├─────────────────────────────────┤
-//!   │  memory list (filtered)         │  ← centre
+//!   │  Activity Row                   │  ← Length(12)
 //!   ├─────────────────────────────────┤
-//!   │  status bar                     │  ← bottom
+//!   │  Memory List                    │  ← Min(0)
+//!   ├─────────────────────────────────┤
+//!   │  Status Bar                     │  ← Length(1)
 //!   └─────────────────────────────────┘
 //! ```
 
 use ratatui::{
-    layout::{Alignment, Constraint, Direction, Layout},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
+    widgets::{Block, Borders, Paragraph},
     Frame,
 };
+use tui_big_text::{BigText, PixelSize};
 
-use crate::tui::app::App;
+use crate::tui::app::{App, View};
+
+// Per-character rainbow colours for "FixOnce".
+const LOGO_COLORS: [(u8, u8, u8); 7] = [
+    (255, 107, 107), // F — red
+    (255, 142, 107), // i — orange
+    (255, 184, 107), // x — yellow-orange
+    (107, 255, 107), // O — green
+    (107, 196, 255), // n — cyan
+    (107, 107, 255), // c — blue
+    (184, 107, 255), // e — purple
+];
 
 /// Render the dashboard screen.
 pub fn render(f: &mut Frame, app: &App) {
     let area = f.area();
 
-    // Outer vertical split: header (3) | body | status (1).
+    // Outer vertical split: hero | activity | memory list | status bar.
     let outer = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),
+            Constraint::Length(8),
+            Constraint::Length(12),
             Constraint::Min(0),
             Constraint::Length(1),
         ])
         .split(area);
 
-    // ---- Header / search bar ----
-    let header_chunks = Layout::default()
+    render_hero_row(f, outer[0]);
+    render_activity_row(f, outer[1]);
+    render_memory_list(f, outer[2]);
+    render_status_bar(f, app, outer[3]);
+}
+
+// ---------------------------------------------------------------------------
+// Hero Row
+// ---------------------------------------------------------------------------
+
+fn render_hero_row(f: &mut Frame, area: Rect) {
+    // Horizontal split: logo (66%) | info panel (34%).
+    let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(12), Constraint::Min(0)])
-        .split(outer[0]);
+        .constraints([Constraint::Percentage(66), Constraint::Percentage(34)])
+        .split(area);
 
-    let title = Paragraph::new("  FixOnce")
-        .style(
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        )
-        .block(Block::default().borders(Borders::ALL));
-    f.render_widget(title, header_chunks[0]);
+    render_logo(f, cols[0]);
+    render_info_panel(f, cols[1]);
+}
 
-    let search_text = format!(" Search: {}_", app.search_query);
-    let search = Paragraph::new(search_text)
-        .style(Style::default().fg(Color::White))
-        .block(Block::default().borders(Borders::ALL).title(" Filter "));
-    f.render_widget(search, header_chunks[1]);
-
-    // ---- Memory list ----
-    let filtered = app.filtered_memories();
-    let items: Vec<ListItem> = filtered
-        .iter()
-        .map(|m| {
-            let decay_bar = decay_indicator(m.decay_score);
-            let line = Line::from(vec![
-                Span::styled(
-                    format!(" {:>5.2} ", m.decay_score),
-                    Style::default().fg(score_colour(m.decay_score)),
-                ),
-                Span::raw(decay_bar),
-                Span::raw("  "),
-                Span::styled(
-                    format!("[{:<12}]", m.memory_type.to_string()),
-                    Style::default().fg(Color::Yellow),
-                ),
-                Span::raw("  "),
-                Span::raw(truncate(&m.title, 60)),
-            ]);
-            ListItem::new(line)
+fn render_logo(f: &mut Frame, area: Rect) {
+    let chars: Vec<Span> = "FixOnce"
+        .chars()
+        .enumerate()
+        .map(|(i, ch)| {
+            let (r, g, b) = LOGO_COLORS[i % LOGO_COLORS.len()];
+            Span::styled(ch.to_string(), Style::default().fg(Color::Rgb(r, g, b)))
         })
         .collect();
 
-    let mut list_state = ListState::default();
-    list_state.select(if filtered.is_empty() {
-        None
-    } else {
-        Some(app.selected_index.min(filtered.len().saturating_sub(1)))
-    });
+    let big = BigText::builder()
+        .pixel_size(PixelSize::Full)
+        .lines(vec![Line::from(chars)])
+        .alignment(Alignment::Left)
+        .build();
 
-    let list = List::new(items)
+    f.render_widget(big, area);
+}
+
+fn render_info_panel(f: &mut Frame, area: Rect) {
+    let version = env!("CARGO_PKG_VERSION");
+    let os = std::env::consts::OS;
+    let arch = std::env::consts::ARCH;
+
+    let content = vec![
+        Line::from(format!("Version: {version}")),
+        Line::from(format!("OS: {os} {arch}")),
+        Line::from("───────────────"),
+        Line::from("Message of the Day"),
+        Line::from(Span::styled(
+            "\"Fix it once, remember it forever.\"",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::ITALIC),
+        )),
+    ];
+
+    let info = Paragraph::new(content)
+        .block(Block::default().borders(Borders::ALL))
+        .style(Style::default().fg(Color::White));
+
+    f.render_widget(info, area);
+}
+
+// ---------------------------------------------------------------------------
+// Activity Row (placeholder)
+// ---------------------------------------------------------------------------
+
+fn render_activity_row(f: &mut Frame, area: Rect) {
+    let placeholder = Paragraph::new("Loading activity data...")
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(format!(" Memories ({}) ", filtered.len())),
+                .title(" Activity "),
         )
-        .highlight_style(
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::DarkGray));
+
+    f.render_widget(placeholder, area);
+}
+
+// ---------------------------------------------------------------------------
+// Memory List (placeholder)
+// ---------------------------------------------------------------------------
+
+fn render_memory_list(f: &mut Frame, area: Rect) {
+    let placeholder = Paragraph::new("Loading memories...")
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Memories "),
+        )
+        .alignment(Alignment::Center)
+        .style(Style::default().fg(Color::DarkGray));
+
+    f.render_widget(placeholder, area);
+}
+
+// ---------------------------------------------------------------------------
+// Status Bar
+// ---------------------------------------------------------------------------
+
+fn render_status_bar(f: &mut Frame, app: &App, area: Rect) {
+    let version = env!("CARGO_PKG_VERSION");
+
+    // Build the tab indicators.
+    let tabs: &[(&str, bool)] = &[
+        ("[1] Dashboard", matches!(app.current_view, View::Dashboard)),
+        ("[2] Search", matches!(app.current_view, View::Search)),
+        (
+            "[3] Create",
+            matches!(app.current_view, View::CreateForm),
+        ),
+        ("[4] Keys", matches!(app.current_view, View::Keys)),
+        ("[q] Quit", false),
+    ];
+
+    let mut spans: Vec<Span> = Vec::new();
+    for (label, active) in tabs {
+        let style = if *active {
             Style::default()
-                .bg(Color::DarkGray)
-                .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol("> ");
-
-    f.render_stateful_widget(list, outer[1], &mut list_state);
-
-    // ---- Status / keybinding bar ----
-    let status_text = if let Some(ref msg) = app.status_message {
-        msg.clone()
-    } else {
-        " [1]Dashboard  [2]List  [3]Create  [4]Activity  [5]Keys  [6]Secrets  [7]Health  [q]Quit"
-            .to_owned()
-    };
-    let status = Paragraph::new(status_text)
-        .style(Style::default().fg(Color::DarkGray))
-        .alignment(Alignment::Left);
-    f.render_widget(status, outer[2]);
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-fn decay_indicator(score: f64) -> &'static str {
-    if score >= 90.0 {
-        "████"
-    } else if score >= 70.0 {
-        "███░"
-    } else if score >= 50.0 {
-        "██░░"
-    } else if score >= 30.0 {
-        "█░░░"
-    } else {
-        "░░░░"
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+        spans.push(Span::styled(label.to_string(), style));
+        spans.push(Span::raw("  "));
     }
-}
 
-fn score_colour(score: f64) -> Color {
-    if score >= 80.0 {
-        Color::Green
-    } else if score >= 50.0 {
-        Color::Yellow
-    } else {
-        Color::Red
-    }
-}
+    // Context hints.
+    spans.push(Span::styled(
+        "[/] graph  [;'] list  ↑↓ nav  Enter open",
+        Style::default().fg(Color::DarkGray),
+    ));
 
-fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
-        s.to_owned()
-    } else {
-        format!("{}…", &s[..max.saturating_sub(1)])
-    }
+    // Right-aligned version string.
+    let right_text = format!("fixonce v{version}");
+    // We render the status bar as two Paragraphs: left and right, overlaid.
+    // Simpler: build one line and pad.
+    let left_line = Line::from(spans);
+    let left = Paragraph::new(left_line).alignment(Alignment::Left);
+
+    let right = Paragraph::new(Span::styled(
+        right_text,
+        Style::default().fg(Color::DarkGray),
+    ))
+    .alignment(Alignment::Right);
+
+    f.render_widget(left, area);
+    f.render_widget(right, area);
 }

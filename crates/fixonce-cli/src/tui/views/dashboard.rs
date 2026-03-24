@@ -51,7 +51,7 @@ pub fn render(f: &mut Frame, app: &App) {
         .split(area);
 
     render_hero_row(f, outer[0]);
-    render_activity_row(f, outer[1]);
+    render_activity_row(f, app, outer[1]);
     render_memory_list(f, outer[2]);
     render_status_bar(f, app, outer[3]);
 }
@@ -116,15 +116,55 @@ fn render_info_panel(f: &mut Frame, area: Rect) {
 }
 
 // ---------------------------------------------------------------------------
-// Activity Row (placeholder)
+// Activity Row
 // ---------------------------------------------------------------------------
 
-fn render_activity_row(f: &mut Frame, area: Rect) {
-    let placeholder = Paragraph::new("Loading activity data...")
+fn render_activity_row(f: &mut Frame, app: &App, area: Rect) {
+    // Horizontal split: heatmap (50%) | stats placeholder (50%).
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    render_heatmap_panel(f, app, cols[0]);
+    render_stats_placeholder(f, cols[1]);
+}
+
+fn render_heatmap_panel(f: &mut Frame, app: &App, area: Rect) {
+    let title = format!(" {} ", app.heatmap_mode.label());
+    let hint = " [ ] switch [ ] ";
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .title_bottom(Line::from(hint).alignment(Alignment::Right));
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    match app.dashboard_data.as_loaded() {
+        Some(data) => {
+            crate::tui::widgets::heatmap::render_heatmap(
+                f,
+                inner,
+                &data.heatmap,
+                app.heatmap_mode,
+            );
+        }
+        None => {
+            let loading = Paragraph::new("Loading heatmap...")
+                .alignment(Alignment::Center)
+                .style(Style::default().fg(Color::DarkGray));
+            f.render_widget(loading, inner);
+        }
+    }
+}
+
+fn render_stats_placeholder(f: &mut Frame, area: Rect) {
+    let placeholder = Paragraph::new("Stats loading...")
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Activity "),
+                .title(" Stats "),
         )
         .alignment(Alignment::Center)
         .style(Style::default().fg(Color::DarkGray));

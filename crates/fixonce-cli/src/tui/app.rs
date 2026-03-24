@@ -524,6 +524,12 @@ impl App {
             return;
         }
         match key.code {
+            KeyCode::Char('[') => {
+                self.heatmap_mode = self.heatmap_mode.prev();
+            }
+            KeyCode::Char(']') => {
+                self.heatmap_mode = self.heatmap_mode.next();
+            }
             KeyCode::Down => {
                 let len = self.filtered_memories().len();
                 self.select_next(len);

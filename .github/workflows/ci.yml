@@ -1,39 +1,89 @@
 name: CI
 
 on:
+  push:
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: ["**"]
 
-permissions:
-  contents: read
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
 
 jobs:
-  ci:
+  rust:
+    name: Rust checks
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
-
-      - uses: actions/setup-node@v4
+      - name: Install Rust toolchain (stable)
+        uses: dtolnay/rust-toolchain@stable
         with:
-          node-version: "24"
-          cache: pnpm
+          components: rustfmt, clippy
 
-      - run: pnpm install --frozen-lockfile
+      - name: Cache Cargo registry and build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
 
       - name: Check formatting
-        run: pnpm format:check
+        run: cargo fmt --check
 
-      - name: Lint
-        run: pnpm lint
+      - name: Run Clippy (deny warnings)
+        run: cargo clippy -- -D warnings
 
-      - name: Type check
-        run: pnpm typecheck
+      - name: Run tests
+        run: cargo test
 
-      - name: Test
-        run: pnpm test
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run cargo audit (advisory-only, does not fail build)
+        run: cargo audit || true
+
+  deno:
+    name: Deno checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Check Deno formatting
+        run: |
+          if find supabase/functions -name '*.ts' 2>/dev/null | grep -q .; then
+            deno fmt --check --config supabase/functions/deno.json supabase/functions
+          else
+            echo "No edge function files found, skipping Deno fmt check."
+          fi
+
+      - name: Run Deno lint
+        run: |
+          if find supabase/functions -name '*.ts' 2>/dev/null | grep -q .; then
+            deno lint --config supabase/functions/deno.json supabase/functions
+          else
+            echo "No edge function files found, skipping Deno lint."
+          fi
+
+      - name: Run Deno type check
+        run: |
+          if find supabase/functions -name '*.ts' 2>/dev/null | grep -q .; then
+            deno check --config supabase/functions/deno.json supabase/functions/**/*.ts
+          else
+            echo "No edge function files found, skipping Deno type check."
+          fi

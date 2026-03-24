@@ -20,6 +20,7 @@ import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
 import { validateBody, ValidationError } from "../_shared/validate.ts";
+import { logActivity } from "../_shared/activity.ts";
 
 // ---------------------------------------------------------------------------
 // Input schema
@@ -155,25 +156,11 @@ Deno.serve(async (req: Request): Promise<Response> => {
     throw err;
   }
 
-  // Verify JWT
-  try {
-    await verifyAuth(req);
-  } catch (err) {
-    const status = (err as Error & { status?: number }).status ?? 401;
-    return errorResponse(
-      status,
-      status === 401 ? "UNAUTHORIZED" : "INTERNAL_ERROR",
-      (err as Error).message,
-      status === 401
-        ? "Provide a valid Bearer token in the Authorization header."
-        : "Contact support if this persists.",
-    );
-  }
-
-  // We need the supabase client from verifyAuth for the RPC call
+  // Verify JWT and get authenticated client
+  let userId: string;
   let supabase: Awaited<ReturnType<typeof verifyAuth>>["supabase"];
   try {
-    ({ supabase } = await verifyAuth(req));
+    ({ userId, supabase } = await verifyAuth(req));
   } catch (err) {
     const status = (err as Error & { status?: number }).status ?? 401;
     return errorResponse(
@@ -225,6 +212,14 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // EC-09: empty vector results return empty array, not an error
   const rows: SearchResultRow[] = Array.isArray(data) ? data : [];
+
+  // Log activity (non-fatal — errors are swallowed inside logActivity)
+  await logActivity(supabase, {
+    userId,
+    action: "memory.searched",
+    entityType: "search",
+    metadata: { search_type: input.search_type, result_count: rows.length },
+  });
 
   // Apply post-filters (memory_type, language) — these are not supported
   // directly by the RPC, so we filter the results in-process.

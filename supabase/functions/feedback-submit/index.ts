@@ -189,7 +189,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Log activity (non-fatal)
   await logActivity(supabase, {
     userId,
-    action: "feedback.submit",
+    action: "feedback.submitted",
     entityType: "memory",
     entityId: memory_id,
     metadata: { rating },

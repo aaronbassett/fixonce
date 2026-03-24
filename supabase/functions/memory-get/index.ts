@@ -13,6 +13,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
+import { logActivity } from "../_shared/activity.ts";
 
 // UUID v4 regex for basic format validation
 const uuidSchema = z.string().uuid();
@@ -105,9 +106,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  // Suppress unused variable warning — userId is captured for potential future
-  // last_accessed_at update or audit use, but we intentionally keep this light.
-  void userId;
+  // Log activity (non-fatal — errors are swallowed inside logActivity)
+  await logActivity(supabase, {
+    userId,
+    action: "memory.accessed",
+    entityType: "memory",
+    entityId: parsed.data,
+  });
 
   return new Response(JSON.stringify(data), {
     status: 200,

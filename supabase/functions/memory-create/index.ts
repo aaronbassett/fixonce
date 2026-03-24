@@ -169,7 +169,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
   // Log activity (non-fatal — errors are swallowed inside logActivity)
   await logActivity(supabase, {
     userId,
-    action: "memory.create",
+    action: "memory.created",
     entityType: "memory",
     entityId: (data as { id: string; created_at: string }).id,
     metadata: {

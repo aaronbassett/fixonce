@@ -422,14 +422,16 @@ impl App {
             }
             KeyCode::Enter => {
                 // Fire search and switch back to navigation.
-                self.input_mode = InputMode::Navigation;
-                if let Some(client) = &self.api_client {
+                if let Some(ref client) = self.api_client {
+                    self.search_results = DataState::Loading;
+                    self.selected_index = 0;
                     data::search_memories_async(
                         client.clone(),
                         self.search_query.clone(),
                         self.search_type.label().to_owned(),
                         self.tx.clone(),
                     );
+                    self.input_mode = InputMode::Navigation;
                 }
             }
             KeyCode::Tab => {
@@ -557,15 +559,26 @@ impl App {
             return;
         }
         match key.code {
-            KeyCode::Char('i') | KeyCode::Char('/') => {
+            KeyCode::Char('/') => {
                 self.input_mode = InputMode::Input;
             }
             KeyCode::Down => {
-                self.select_next(usize::MAX);
+                let len = self.search_results_len();
+                self.select_next(len);
             }
             KeyCode::Up => self.select_prev(),
+            KeyCode::Enter => {
+                if let Some(id) = self.selected_search_memory_id() {
+                    self.navigate_to(View::MemoryDetail(id));
+                }
+            }
             KeyCode::Esc => {
                 self.navigate_to(View::Dashboard);
+            }
+            KeyCode::Char(c) => {
+                // Any printable char switches to input mode and appends.
+                self.input_mode = InputMode::Input;
+                self.search_query.push(c);
             }
             _ => {}
         }
@@ -743,6 +756,27 @@ impl App {
         }
     }
 
+    /// Return the number of search result hits.
+    #[must_use]
+    pub fn search_results_len(&self) -> usize {
+        match &self.search_results {
+            DataState::Loaded(resp) => resp.hits.len(),
+            _ => 0,
+        }
+    }
+
+    /// Return the memory ID of the currently selected search result.
+    #[must_use]
+    pub fn selected_search_memory_id(&self) -> Option<String> {
+        if let DataState::Loaded(ref resp) = self.search_results {
+            resp.hits
+                .get(self.selected_index)
+                .map(|h| h.memory.id.clone())
+        } else {
+            None
+        }
+    }
+
     /// Get a mutable reference to the currently active create-form field.
     fn get_active_form_field_mut(&mut self) -> &mut String {
         match self.form_field {
@@ -844,7 +878,7 @@ fn run_event_loop(
             } else {
                 match &app.current_view {
                     View::Dashboard => views::dashboard::render(f, app),
-                    View::Search => views::dashboard::render(f, app), // temporary until Task 10
+                    View::Search => views::search::render(f, app),
                     View::MemoryDetail(_) => views::memory_detail::render(f, app),
                     View::CreateForm => views::create_form::render(f, app),
                     View::Keys => views::keys::render(f, app),

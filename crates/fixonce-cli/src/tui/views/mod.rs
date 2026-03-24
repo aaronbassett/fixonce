@@ -7,6 +7,7 @@ pub mod health;
 pub mod keys;
 pub mod memory_detail;
 pub mod memory_list;
+pub mod search;
 pub mod secrets;
 pub mod splash;
 pub mod too_small;

@@ -481,6 +481,7 @@ dependencies = [
 name = "fixonce-hooks"
 version = "0.1.0"
 dependencies = [
+ "base64",
  "fixonce-core",
  "thiserror",
  "tokio",

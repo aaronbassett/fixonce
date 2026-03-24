@@ -8,7 +8,6 @@ use std::path::Path;
 
 use fixonce_core::{
     api::{search::search_memories, ApiClient},
-    auth::token::TokenManager,
     detect::midnight::detect_midnight_versions,
     memory::types::{MemoryType, SearchMemoryRequest},
 };
@@ -30,11 +29,12 @@ use crate::HookError;
 ///
 /// # Errors
 ///
-/// Returns [`HookError::Unauthenticated`] when no token is stored (EC-43).
+/// Returns [`HookError::Unauthenticated`] when no token is stored or the
+/// token has expired (EC-43).
 /// Returns [`HookError::Api`] on network failure.
 pub async fn on_session_start(api_url: &str) -> Result<String, HookError> {
-    // EC-43: load token; skip silently when absent.
-    let token = load_token()?;
+    // EC-43: load token; skip silently when absent or expired.
+    let token = crate::load_valid_token()?;
 
     let client = ApiClient::new(api_url)
         .map_err(HookError::Api)?
@@ -82,15 +82,6 @@ pub async fn on_session_start(api_url: &str) -> Result<String, HookError> {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// Load the JWT from the OS keyring, mapping missing token to [`HookError::Unauthenticated`].
-fn load_token() -> Result<String, HookError> {
-    let mgr = TokenManager::new();
-    match mgr.load_token().map_err(HookError::Auth)? {
-        Some(t) => Ok(t),
-        None => Err(HookError::Unauthenticated),
-    }
-}
 
 /// Build a search query string from detected Midnight versions.
 fn build_version_query(versions: &fixonce_core::detect::midnight::MidnightVersions) -> String {
@@ -233,10 +224,10 @@ mod tests {
     }
 
     #[test]
-    fn load_token_returns_unauthenticated_when_no_token() {
-        // The test environment has no keyring token; this should map to
-        // HookError::Unauthenticated or HookError::Auth.
-        let result = load_token();
+    fn load_valid_token_returns_error_when_no_token() {
+        // The test environment has no stored token; the shared helper should
+        // map this to HookError::Unauthenticated or HookError::Auth.
+        let result = crate::load_valid_token();
         assert!(
             result.is_err(),
             "should error when no token is stored in test environment"

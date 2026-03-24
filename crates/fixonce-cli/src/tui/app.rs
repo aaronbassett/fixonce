@@ -15,7 +15,13 @@ use fixonce_core::{
     auth::token::TokenManager,
     memory::types::{Memory, SearchMemoryResponse},
 };
-use ratatui::{backend::CrosstermBackend, Terminal};
+use ratatui::{
+    backend::CrosstermBackend,
+    layout::Alignment,
+    style::{Color, Style},
+    widgets::Paragraph,
+    Terminal,
+};
 use std::io;
 use std::time::Duration;
 use tokio::sync::mpsc;
@@ -28,9 +34,9 @@ use super::views;
 // ---------------------------------------------------------------------------
 
 /// Minimum columns required to render the TUI without garbling.
-pub const MIN_COLS: u16 = 80;
+pub const MIN_COLS: u16 = 120;
 /// Minimum rows required to render the TUI without garbling.
-pub const MIN_ROWS: u16 = 24;
+pub const MIN_ROWS: u16 = 36;
 
 // ---------------------------------------------------------------------------
 // Input mode
@@ -242,9 +248,9 @@ pub struct App {
     pub api_url: String,
     /// Transient status message shown in the status bar.
     pub status_message: Option<String>,
-    /// Activity log entries (for the Activity view).
+    /// General-purpose string list (used by the Keys view for serialised key entries).
     pub activity_entries: Vec<String>,
-    /// Scroll offset for the detail / activity views.
+    /// Scroll offset for scrollable views.
     pub scroll_offset: usize,
     /// Whether the terminal is large enough to render the UI (EC-35).
     pub terminal_too_small: bool,
@@ -421,7 +427,7 @@ impl App {
                 self.search_query.pop();
             }
             KeyCode::Enter => {
-                // Fire search and switch back to navigation.
+                // Fire search (if client available) and switch back to navigation.
                 if let Some(ref client) = self.api_client {
                     self.search_results = DataState::Loading;
                     self.selected_index = 0;
@@ -431,8 +437,8 @@ impl App {
                         self.search_type.label().to_owned(),
                         self.tx.clone(),
                     );
-                    self.input_mode = InputMode::Navigation;
                 }
+                self.input_mode = InputMode::Navigation;
             }
             KeyCode::Tab => {
                 self.search_type = self.search_type.next();
@@ -818,6 +824,7 @@ impl App {
 
     /// Return the memories that match the current search query (case-insensitive).
     #[must_use]
+    #[allow(dead_code)]
     pub fn filtered_memories(&self) -> Vec<&Memory> {
         let q = self.search_query.to_lowercase();
         if q.is_empty() {
@@ -991,7 +998,10 @@ fn run_event_loop(
         // Draw frame.
         terminal.draw(|f| {
             if app.terminal_too_small {
-                views::too_small::render(f, f.area());
+                let msg = Paragraph::new("Terminal too small. Minimum: 120x36")
+                    .alignment(Alignment::Center)
+                    .style(Style::default().fg(Color::Red));
+                f.render_widget(msg, f.area());
             } else {
                 match &app.current_view {
                     View::Dashboard => views::dashboard::render(f, app),

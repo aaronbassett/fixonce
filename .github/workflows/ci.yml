@@ -67,7 +67,7 @@ jobs:
       - name: Check Deno formatting
         run: |
           if find supabase/functions -name '*.ts' 2>/dev/null | grep -q .; then
-            deno fmt --check supabase/functions
+            deno fmt --check --config supabase/functions/deno.json supabase/functions
           else
             echo "No edge function files found, skipping Deno fmt check."
           fi
@@ -75,7 +75,7 @@ jobs:
       - name: Run Deno lint
         run: |
           if find supabase/functions -name '*.ts' 2>/dev/null | grep -q .; then
-            deno lint supabase/functions
+            deno lint --config supabase/functions/deno.json supabase/functions
           else
             echo "No edge function files found, skipping Deno lint."
           fi
@@ -83,7 +83,7 @@ jobs:
       - name: Run Deno type check
         run: |
           if find supabase/functions -name '*.ts' 2>/dev/null | grep -q .; then
-            deno check supabase/functions/**/*.ts
+            deno check --config supabase/functions/deno.json supabase/functions/**/*.ts
           else
             echo "No edge function files found, skipping Deno type check."
           fi

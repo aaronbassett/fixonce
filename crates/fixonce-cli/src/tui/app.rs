@@ -11,14 +11,16 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use fixonce_core::{
-    api::{memories::list_memories, ApiClient},
+    api::{dashboard::DashboardData, ApiClient},
     auth::token::TokenManager,
-    memory::types::Memory,
+    memory::types::{Memory, SearchMemoryResponse},
 };
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::time::Duration;
+use tokio::sync::mpsc;
 
+use super::data::{self, AppMessage, DataState};
 use super::views;
 
 // ---------------------------------------------------------------------------
@@ -31,6 +33,142 @@ pub const MIN_COLS: u16 = 80;
 pub const MIN_ROWS: u16 = 24;
 
 // ---------------------------------------------------------------------------
+// Input mode
+// ---------------------------------------------------------------------------
+
+/// Whether the TUI is in navigation mode or text-input mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputMode {
+    Navigation,
+    Input,
+}
+
+// ---------------------------------------------------------------------------
+// Form mode
+// ---------------------------------------------------------------------------
+
+/// Whether the create form is in create or edit mode.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FormMode {
+    Create,
+    Edit { memory_id: String },
+}
+
+// ---------------------------------------------------------------------------
+// Search type
+// ---------------------------------------------------------------------------
+
+/// Search type for the Search view.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchType {
+    Hybrid,
+    Fts,
+    Vector,
+}
+
+impl SearchType {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Hybrid => Self::Fts,
+            Self::Fts => Self::Vector,
+            Self::Vector => Self::Hybrid,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Hybrid => "hybrid",
+            Self::Fts => "fts",
+            Self::Vector => "vector",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// List mode
+// ---------------------------------------------------------------------------
+
+/// Dashboard memory list mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ListMode {
+    RecentlyCreated,
+    RecentlyViewed,
+    MostAccessed,
+}
+
+impl ListMode {
+    pub fn next(self) -> Self {
+        match self {
+            Self::RecentlyCreated => Self::RecentlyViewed,
+            Self::RecentlyViewed => Self::MostAccessed,
+            Self::MostAccessed => Self::RecentlyCreated,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::RecentlyCreated => Self::MostAccessed,
+            Self::RecentlyViewed => Self::RecentlyCreated,
+            Self::MostAccessed => Self::RecentlyViewed,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::RecentlyCreated => "Recently Created",
+            Self::RecentlyViewed => "Recently Viewed",
+            Self::MostAccessed => "Most Accessed",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Heatmap mode
+// ---------------------------------------------------------------------------
+
+/// Dashboard activity heatmap mode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HeatmapMode {
+    Created,
+    Read,
+    Searched,
+}
+
+impl HeatmapMode {
+    pub fn next(self) -> Self {
+        match self {
+            Self::Created => Self::Read,
+            Self::Read => Self::Searched,
+            Self::Searched => Self::Created,
+        }
+    }
+
+    pub fn prev(self) -> Self {
+        match self {
+            Self::Created => Self::Searched,
+            Self::Read => Self::Created,
+            Self::Searched => Self::Read,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Created => "Memories Created",
+            Self::Read => "Memories Read",
+            Self::Searched => "Searches Made",
+        }
+    }
+
+    pub fn action(self) -> &'static str {
+        match self {
+            Self::Created => "memory.created",
+            Self::Read => "memory.accessed",
+            Self::Searched => "memory.searched",
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // View enum
 // ---------------------------------------------------------------------------
 
@@ -38,13 +176,10 @@ pub const MIN_ROWS: u16 = 24;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum View {
     Dashboard,
-    MemoryList,
+    Search,
     MemoryDetail(String),
     CreateForm,
-    Activity,
     Keys,
-    Secrets,
-    Health,
 }
 
 // ---------------------------------------------------------------------------
@@ -121,12 +256,40 @@ pub struct App {
     pub form_memory_type: String,
     pub form_source: String,
     pub form_language: String,
+    // --- New fields ---
+    /// Whether the TUI is in navigation mode or text-input mode.
+    pub input_mode: InputMode,
+    /// Previous view for back-navigation.
+    pub previous_view: Option<View>,
+    /// Whether the create form is in create or edit mode.
+    pub form_mode: FormMode,
+    /// Search type for the Search view.
+    pub search_type: SearchType,
+    /// Dashboard memory list mode.
+    pub list_mode: ListMode,
+    /// Dashboard activity heatmap mode.
+    pub heatmap_mode: HeatmapMode,
+    /// Async dashboard data.
+    pub dashboard_data: DataState<DashboardData>,
+    /// Async search results.
+    pub search_results: DataState<SearchMemoryResponse>,
+    /// API client for spawning async tasks.
+    pub api_client: Option<ApiClient>,
+    /// Sender for async messages.
+    pub tx: mpsc::UnboundedSender<AppMessage>,
+    /// Receiver for async messages.
+    pub rx: mpsc::UnboundedReceiver<AppMessage>,
 }
 
 impl App {
     /// Construct a new [`App`] with sensible defaults.
     #[must_use]
-    pub fn new(api_url: String) -> Self {
+    pub fn new(
+        api_url: String,
+        client: Option<ApiClient>,
+        tx: mpsc::UnboundedSender<AppMessage>,
+        rx: mpsc::UnboundedReceiver<AppMessage>,
+    ) -> Self {
         Self {
             current_view: View::Dashboard,
             should_quit: false,
@@ -145,6 +308,17 @@ impl App {
             form_memory_type: String::from("gotcha"),
             form_source: String::from("manual"),
             form_language: String::new(),
+            input_mode: InputMode::Navigation,
+            previous_view: None,
+            form_mode: FormMode::Create,
+            search_type: SearchType::Fts,
+            list_mode: ListMode::RecentlyCreated,
+            heatmap_mode: HeatmapMode::Created,
+            dashboard_data: DataState::default(),
+            search_results: DataState::default(),
+            api_client: client,
+            tx,
+            rx,
         }
     }
 
@@ -153,6 +327,7 @@ impl App {
         // Reset scroll when changing views.
         if self.current_view != view {
             self.scroll_offset = 0;
+            self.previous_view = Some(self.current_view.clone());
         }
         self.current_view = view;
         self.status_message = None;
@@ -186,7 +361,7 @@ impl App {
 
     /// Apply a key event globally and dispatch view-specific handling.
     pub fn handle_key_event(&mut self, key: KeyEvent) {
-        // Global: Ctrl+C / 'q' quit from any view.
+        // Global: Ctrl+C quit from any view.
         if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('c') {
             self.should_quit = true;
             return;
@@ -200,16 +375,110 @@ impl App {
             return;
         }
 
-        // View-specific dispatch.
+        match self.input_mode {
+            InputMode::Navigation => self.handle_navigation_key(key),
+            InputMode::Input => self.handle_input_key(key),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Navigation-mode key handling
+    // -----------------------------------------------------------------------
+
+    fn handle_navigation_key(&mut self, key: KeyEvent) {
+        // View-specific dispatch (may consume the key).
         match self.current_view.clone() {
             View::Dashboard => self.handle_dashboard_key(key),
-            View::MemoryList => self.handle_memory_list_key(key),
+            View::Search => self.handle_search_key(key),
             View::MemoryDetail(_) => self.handle_memory_detail_key(key),
             View::CreateForm => self.handle_create_form_key(key),
-            View::Activity => self.handle_activity_key(key),
             View::Keys => self.handle_keys_key(key),
-            View::Secrets => self.handle_secrets_key(key),
-            View::Health => self.handle_health_key(key),
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Input-mode key handling
+    // -----------------------------------------------------------------------
+
+    fn handle_input_key(&mut self, key: KeyEvent) {
+        match self.current_view {
+            View::Search => self.handle_search_input_key(key),
+            View::CreateForm => self.handle_create_form_input_key(key),
+            _ => {
+                // Unexpected input mode — escape back to navigation.
+                self.input_mode = InputMode::Navigation;
+            }
+        }
+    }
+
+    /// Handle key events while in input mode on the Search view.
+    fn handle_search_input_key(&mut self, key: KeyEvent) {
+        match key.code {
+            KeyCode::Char(c) => {
+                self.search_query.push(c);
+            }
+            KeyCode::Backspace => {
+                self.search_query.pop();
+            }
+            KeyCode::Enter => {
+                // Fire search and switch back to navigation.
+                self.input_mode = InputMode::Navigation;
+                if let Some(client) = &self.api_client {
+                    data::search_memories_async(
+                        client.clone(),
+                        self.search_query.clone(),
+                        self.search_type.label().to_owned(),
+                        self.tx.clone(),
+                    );
+                }
+            }
+            KeyCode::Tab => {
+                self.search_type = self.search_type.next();
+            }
+            KeyCode::Esc => {
+                self.search_query.clear();
+                self.input_mode = InputMode::Navigation;
+            }
+            _ => {}
+        }
+    }
+
+    /// Handle key events while in input mode on the Create form.
+    fn handle_create_form_input_key(&mut self, key: KeyEvent) {
+        // Ctrl+S submits.
+        if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('s') {
+            self.status_message = Some(
+                "Ctrl+S detected — submit via `fixonce create` CLI for full pipeline.".to_owned(),
+            );
+            return;
+        }
+        match key.code {
+            KeyCode::Esc => {
+                self.input_mode = InputMode::Navigation;
+                self.navigate_to(View::Dashboard);
+            }
+            KeyCode::Tab => {
+                self.form_field = self.form_field.next();
+            }
+            KeyCode::BackTab => {
+                self.form_field = self.form_field.prev();
+            }
+            KeyCode::Char(c) => {
+                let field = self.get_active_form_field_mut();
+                field.push(c);
+            }
+            KeyCode::Enter => {
+                // Insert newline in multiline fields (content, summary).
+                if matches!(self.form_field, FormField::Content | FormField::Summary) {
+                    let field = self.get_active_form_field_mut();
+                    field.push('\n');
+                }
+            }
+            KeyCode::Backspace => {
+                let field = self.get_active_form_field_mut();
+                field.pop();
+            }
+            _ => {}
         }
     }
 
@@ -231,7 +500,7 @@ impl App {
                 true
             }
             KeyCode::Char('2') => {
-                self.navigate_to(View::MemoryList);
+                self.navigate_to(View::Search);
                 true
             }
             KeyCode::Char('3') => {
@@ -239,19 +508,7 @@ impl App {
                 true
             }
             KeyCode::Char('4') => {
-                self.navigate_to(View::Activity);
-                true
-            }
-            KeyCode::Char('5') => {
                 self.navigate_to(View::Keys);
-                true
-            }
-            KeyCode::Char('6') => {
-                self.navigate_to(View::Secrets);
-                true
-            }
-            KeyCode::Char('7') => {
-                self.navigate_to(View::Health);
                 true
             }
             _ => false,
@@ -259,38 +516,10 @@ impl App {
     }
 
     // -----------------------------------------------------------------------
-    // Per-view key handlers
+    // Per-view key handlers (navigation mode)
     // -----------------------------------------------------------------------
 
     fn handle_dashboard_key(&mut self, key: KeyEvent) {
-        if self.handle_global_nav(key) {
-            return;
-        }
-        match key.code {
-            // Typing into the search bar.
-            KeyCode::Char(c) => {
-                self.search_query.push(c);
-            }
-            KeyCode::Backspace => {
-                self.search_query.pop();
-            }
-            KeyCode::Enter => {
-                // Commit search — switch to memory list with filter applied.
-                self.navigate_to(View::MemoryList);
-            }
-            KeyCode::Esc => {
-                self.search_query.clear();
-            }
-            KeyCode::Down => {
-                let len = self.filtered_memories().len();
-                self.select_next(len);
-            }
-            KeyCode::Up => self.select_prev(),
-            _ => {}
-        }
-    }
-
-    fn handle_memory_list_key(&mut self, key: KeyEvent) {
         if self.handle_global_nav(key) {
             return;
         }
@@ -306,21 +535,24 @@ impl App {
                     self.navigate_to(View::MemoryDetail(id));
                 }
             }
-            KeyCode::Char(c) => {
-                self.search_query.push(c);
-                self.selected_index = 0;
+            _ => {}
+        }
+    }
+
+    fn handle_search_key(&mut self, key: KeyEvent) {
+        if self.handle_global_nav(key) {
+            return;
+        }
+        match key.code {
+            KeyCode::Char('i') | KeyCode::Char('/') => {
+                self.input_mode = InputMode::Input;
             }
-            KeyCode::Backspace => {
-                self.search_query.pop();
-                self.selected_index = 0;
+            KeyCode::Down => {
+                self.select_next(usize::MAX);
             }
+            KeyCode::Up => self.select_prev(),
             KeyCode::Esc => {
-                if self.search_query.is_empty() {
-                    self.navigate_to(View::Dashboard);
-                } else {
-                    self.search_query.clear();
-                    self.selected_index = 0;
-                }
+                self.navigate_to(View::Dashboard);
             }
             _ => {}
         }
@@ -334,7 +566,12 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_down(),
             KeyCode::Esc | KeyCode::Backspace => {
-                self.navigate_to(View::MemoryList);
+                // Navigate back to previous view or Dashboard.
+                let back = self
+                    .previous_view
+                    .take()
+                    .unwrap_or(View::Dashboard);
+                self.navigate_to(back);
             }
             _ => {}
         }
@@ -360,39 +597,25 @@ impl App {
             self.form_field = self.form_field.prev();
             return;
         }
+        // Enter input mode for typing into form fields.
+        if key.code == KeyCode::Char('i') || key.code == KeyCode::Enter {
+            self.input_mode = InputMode::Input;
+            return;
+        }
         // Global nav (numbers) still work.
         if self.handle_global_nav(key) {
             return;
         }
-        // Type into the active field.
+        // Type into the active field (for single-character keys in navigation mode).
         match key.code {
             KeyCode::Char(c) => {
                 let field = self.get_active_form_field_mut();
                 field.push(c);
             }
-            KeyCode::Enter => {
-                // Insert newline in multiline fields (content, summary).
-                if matches!(self.form_field, FormField::Content | FormField::Summary) {
-                    let field = self.get_active_form_field_mut();
-                    field.push('\n');
-                }
-            }
             KeyCode::Backspace => {
                 let field = self.get_active_form_field_mut();
                 field.pop();
             }
-            _ => {}
-        }
-    }
-
-    fn handle_activity_key(&mut self, key: KeyEvent) {
-        if self.handle_global_nav(key) {
-            return;
-        }
-        match key.code {
-            KeyCode::Up | KeyCode::Char('k') => self.scroll_up(),
-            KeyCode::Down | KeyCode::Char('j') => self.scroll_down(),
-            KeyCode::Esc => self.navigate_to(View::Dashboard),
             _ => {}
         }
     }
@@ -412,21 +635,37 @@ impl App {
         }
     }
 
-    fn handle_secrets_key(&mut self, key: KeyEvent) {
-        if self.handle_global_nav(key) {
-            return;
-        }
-        if key.code == KeyCode::Esc {
-            self.navigate_to(View::Dashboard);
-        }
-    }
+    // -----------------------------------------------------------------------
+    // Message handling
+    // -----------------------------------------------------------------------
 
-    fn handle_health_key(&mut self, key: KeyEvent) {
-        if self.handle_global_nav(key) {
-            return;
-        }
-        if key.code == KeyCode::Esc {
-            self.navigate_to(View::Dashboard);
+    /// Handle an async message from a background task.
+    pub fn handle_message(&mut self, msg: AppMessage) {
+        match msg {
+            AppMessage::DashboardLoaded(Ok(data)) => {
+                self.dashboard_data = DataState::Loaded(data);
+            }
+            AppMessage::DashboardLoaded(Err(e)) => {
+                self.dashboard_data = DataState::Error(e);
+            }
+            AppMessage::MemoriesLoaded(Ok(memories)) => {
+                self.memories = memories;
+            }
+            AppMessage::MemoriesLoaded(Err(e)) => {
+                self.status_message = Some(format!("Failed to load memories: {e}"));
+            }
+            AppMessage::SearchResults(Ok(results)) => {
+                self.search_results = DataState::Loaded(results);
+            }
+            AppMessage::SearchResults(Err(e)) => {
+                self.search_results = DataState::Error(e);
+            }
+            AppMessage::SubmitResult(Ok(msg)) => {
+                self.status_message = Some(msg);
+            }
+            AppMessage::SubmitResult(Err(e)) => {
+                self.status_message = Some(format!("Submit failed: {e}"));
+            }
         }
     }
 
@@ -491,8 +730,25 @@ pub async fn run_tui(api_url: &str) -> Result<()> {
         );
     }
 
-    // Fetch memories before entering raw mode so errors print normally.
-    let memories = fetch_memories(api_url).await.unwrap_or_default();
+    // Check auth before entering raw mode.
+    let mgr = TokenManager::new();
+    let token = match mgr.load_token() {
+        Ok(Some(t)) if !mgr.is_expired(&t) => t,
+        _ => {
+            // Task 6 will implement show_unauthenticated_splash.
+            anyhow::bail!("Not authenticated — run `fixonce login` first");
+        }
+    };
+
+    let client = ApiClient::new(api_url)
+        .context("Failed to create API client")?
+        .with_token(&token);
+
+    let (tx, rx) = mpsc::unbounded_channel();
+
+    // Kick off initial data fetches.
+    data::fetch_dashboard_async(client.clone(), tx.clone());
+    data::fetch_memories_async(client.clone(), tx.clone());
 
     // Setup terminal.
     enable_raw_mode()?;
@@ -501,8 +757,7 @@ pub async fn run_tui(api_url: &str) -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(api_url.to_owned());
-    app.memories = memories;
+    let mut app = App::new(api_url.to_owned(), Some(client), tx, rx);
 
     // Main event loop.
     let result = run_event_loop(&mut terminal, &mut app);
@@ -521,6 +776,11 @@ fn run_event_loop(
     app: &mut App,
 ) -> Result<()> {
     loop {
+        // Drain async messages.
+        while let Ok(msg) = app.rx.try_recv() {
+            app.handle_message(msg);
+        }
+
         // Check terminal size (EC-35).
         let size = terminal.size()?;
         app.terminal_too_small = size.width < MIN_COLS || size.height < MIN_ROWS;
@@ -532,13 +792,10 @@ fn run_event_loop(
             } else {
                 match &app.current_view {
                     View::Dashboard => views::dashboard::render(f, app),
-                    View::MemoryList => views::memory_list::render(f, app),
+                    View::Search => views::dashboard::render(f, app), // temporary until Task 10
                     View::MemoryDetail(_) => views::memory_detail::render(f, app),
                     View::CreateForm => views::create_form::render(f, app),
-                    View::Activity => views::activity::render(f, app),
                     View::Keys => views::keys::render(f, app),
-                    View::Secrets => views::secrets::render(f, app),
-                    View::Health => views::health::render(f, app),
                 }
             }
         })?;
@@ -555,20 +812,4 @@ fn run_event_loop(
         }
     }
     Ok(())
-}
-
-/// Fetch recent memories from the backend for the TUI.
-async fn fetch_memories(api_url: &str) -> Result<Vec<Memory>> {
-    let mgr = TokenManager::new();
-    let token = mgr
-        .load_token()
-        .context("Failed to read token")?
-        .context("Not authenticated — run `fixonce login` first")?;
-
-    let client = ApiClient::new(api_url)
-        .context("Failed to create API client")?
-        .with_token(&token);
-
-    let memories = list_memories(&client, 100).await?;
-    Ok(memories)
 }

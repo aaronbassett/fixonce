@@ -9,8 +9,9 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use fixonce_core::memory::types::{
     EmbeddingStatus, Memory, MemoryType, PipelineStatus, SourceType,
 };
+use tokio::sync::mpsc;
 
-use super::app::{App, FormField, View, MIN_COLS, MIN_ROWS};
+use super::app::{App, FormField, InputMode, View, MIN_COLS, MIN_ROWS};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,6 +27,18 @@ fn ctrl(code: KeyCode) -> KeyEvent {
 
 fn shift(code: KeyCode) -> KeyEvent {
     KeyEvent::new(code, KeyModifiers::SHIFT)
+}
+
+/// Create a test App with a no-op channel (no API client).
+fn test_app() -> App {
+    let (tx, rx) = mpsc::unbounded_channel();
+    App::new(String::new(), None, tx, rx)
+}
+
+/// Create a test App with a specific API URL.
+fn test_app_with_url(url: &str) -> App {
+    let (tx, rx) = mpsc::unbounded_channel();
+    App::new(url.to_owned(), None, tx, rx)
 }
 
 fn make_memory(id: &str, title: &str, decay: f64) -> Memory {
@@ -65,10 +78,11 @@ fn make_memory(id: &str, title: &str, decay: f64) -> Memory {
 
 #[test]
 fn new_initialises_default_view() {
-    let app = App::new("https://example.com".to_owned());
+    let app = test_app_with_url("https://example.com");
     assert_eq!(app.current_view, View::Dashboard);
     assert!(!app.should_quit);
     assert!(app.search_query.is_empty());
+    assert_eq!(app.input_mode, InputMode::Navigation);
 }
 
 // ---------------------------------------------------------------------------
@@ -77,15 +91,15 @@ fn new_initialises_default_view() {
 
 #[test]
 fn ctrl_c_quits_from_dashboard() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.handle_key_event(ctrl(KeyCode::Char('c')));
     assert!(app.should_quit);
 }
 
 #[test]
-fn ctrl_c_quits_from_memory_list() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
+fn ctrl_c_quits_from_search() {
+    let mut app = test_app();
+    app.navigate_to(View::Search);
     app.handle_key_event(ctrl(KeyCode::Char('c')));
     assert!(app.should_quit);
 }
@@ -96,7 +110,7 @@ fn ctrl_c_quits_from_memory_list() {
 
 #[test]
 fn q_quits_from_dashboard() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.handle_key_event(key(KeyCode::Char('q')));
     assert!(app.should_quit);
 }
@@ -106,104 +120,41 @@ fn q_quits_from_dashboard() {
 // ---------------------------------------------------------------------------
 
 #[test]
-fn pressing_2_navigates_to_memory_list() {
-    let mut app = App::new(String::new());
+fn pressing_2_navigates_to_search() {
+    let mut app = test_app();
     app.handle_key_event(key(KeyCode::Char('2')));
-    assert_eq!(app.current_view, View::MemoryList);
+    assert_eq!(app.current_view, View::Search);
 }
 
 #[test]
 fn pressing_3_navigates_to_create_form() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.handle_key_event(key(KeyCode::Char('3')));
     assert_eq!(app.current_view, View::CreateForm);
 }
 
 #[test]
-fn pressing_4_navigates_to_activity() {
-    let mut app = App::new(String::new());
+fn pressing_4_navigates_to_keys() {
+    let mut app = test_app();
     app.handle_key_event(key(KeyCode::Char('4')));
-    assert_eq!(app.current_view, View::Activity);
-}
-
-#[test]
-fn pressing_5_navigates_to_keys() {
-    let mut app = App::new(String::new());
-    app.handle_key_event(key(KeyCode::Char('5')));
     assert_eq!(app.current_view, View::Keys);
 }
 
 #[test]
-fn pressing_6_navigates_to_secrets() {
-    let mut app = App::new(String::new());
-    app.handle_key_event(key(KeyCode::Char('6')));
-    assert_eq!(app.current_view, View::Secrets);
-}
-
-#[test]
-fn pressing_7_navigates_to_health() {
-    let mut app = App::new(String::new());
-    app.handle_key_event(key(KeyCode::Char('7')));
-    assert_eq!(app.current_view, View::Health);
-}
-
-#[test]
-fn pressing_1_from_list_returns_to_dashboard() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
+fn pressing_1_from_search_returns_to_dashboard() {
+    let mut app = test_app();
+    app.navigate_to(View::Search);
     app.handle_key_event(key(KeyCode::Char('1')));
     assert_eq!(app.current_view, View::Dashboard);
 }
 
 // ---------------------------------------------------------------------------
-// Dashboard: search bar
+// Dashboard: navigation
 // ---------------------------------------------------------------------------
 
 #[test]
-fn dashboard_typing_updates_search_query() {
-    let mut app = App::new(String::new());
-    app.handle_key_event(key(KeyCode::Char('r')));
-    app.handle_key_event(key(KeyCode::Char('u')));
-    app.handle_key_event(key(KeyCode::Char('s')));
-    // 'q' quits — should not appear; these are non-quit chars
-    assert_eq!(app.search_query, "rus");
-    assert!(!app.should_quit);
-}
-
-#[test]
-fn dashboard_backspace_removes_last_char() {
-    let mut app = App::new(String::new());
-    // 'r', 'u', 's', 't' → then backspace
-    for c in ['r', 'u', 's', 't'] {
-        app.handle_key_event(key(KeyCode::Char(c)));
-    }
-    app.handle_key_event(key(KeyCode::Backspace));
-    assert_eq!(app.search_query, "rus");
-}
-
-#[test]
-fn dashboard_esc_clears_search_query() {
-    let mut app = App::new(String::new());
-    app.search_query = "rust".to_owned();
-    app.handle_key_event(key(KeyCode::Esc));
-    assert!(app.search_query.is_empty());
-}
-
-#[test]
-fn dashboard_enter_switches_to_memory_list() {
-    let mut app = App::new(String::new());
-    app.handle_key_event(key(KeyCode::Enter));
-    assert_eq!(app.current_view, View::MemoryList);
-}
-
-// ---------------------------------------------------------------------------
-// Memory list: navigation
-// ---------------------------------------------------------------------------
-
-#[test]
-fn memory_list_arrow_keys_navigate() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
+fn dashboard_arrow_keys_navigate() {
+    let mut app = test_app();
     app.memories = vec![
         make_memory("a", "Alpha", 90.0),
         make_memory("b", "Beta", 70.0),
@@ -223,48 +174,56 @@ fn memory_list_arrow_keys_navigate() {
 }
 
 #[test]
-fn memory_list_enter_navigates_to_detail() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
+fn dashboard_enter_navigates_to_detail() {
+    let mut app = test_app();
     app.memories = vec![make_memory("mem-001", "Alpha", 90.0)];
 
     app.handle_key_event(key(KeyCode::Enter));
     assert_eq!(app.current_view, View::MemoryDetail("mem-001".to_owned()));
 }
 
-#[test]
-fn memory_list_filter_updates_selected_index() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
-    app.memories = vec![
-        make_memory("a", "Alpha", 90.0),
-        make_memory("b", "Beta", 70.0),
-    ];
-    app.selected_index = 1;
+// ---------------------------------------------------------------------------
+// Search: input mode
+// ---------------------------------------------------------------------------
 
-    // Typing a filter character should reset selection to 0.
-    app.handle_key_event(key(KeyCode::Char('a')));
-    assert_eq!(app.selected_index, 0);
-    assert_eq!(app.search_query, "a");
+#[test]
+fn search_i_enters_input_mode() {
+    let mut app = test_app();
+    app.navigate_to(View::Search);
+    app.handle_key_event(key(KeyCode::Char('i')));
+    assert_eq!(app.input_mode, InputMode::Input);
 }
 
 #[test]
-fn memory_list_esc_with_query_clears_it() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
+fn search_input_typing_updates_query() {
+    let mut app = test_app();
+    app.navigate_to(View::Search);
+    app.input_mode = InputMode::Input;
+    app.handle_key_event(key(KeyCode::Char('r')));
+    app.handle_key_event(key(KeyCode::Char('u')));
+    app.handle_key_event(key(KeyCode::Char('s')));
+    assert_eq!(app.search_query, "rus");
+}
+
+#[test]
+fn search_input_esc_clears_and_exits() {
+    let mut app = test_app();
+    app.navigate_to(View::Search);
+    app.input_mode = InputMode::Input;
     app.search_query = "rust".to_owned();
     app.handle_key_event(key(KeyCode::Esc));
     assert!(app.search_query.is_empty());
-    assert_eq!(app.current_view, View::MemoryList);
+    assert_eq!(app.input_mode, InputMode::Navigation);
 }
 
 #[test]
-fn memory_list_esc_without_query_goes_back_to_dashboard() {
-    let mut app = App::new(String::new());
-    app.navigate_to(View::MemoryList);
-    assert!(app.search_query.is_empty());
-    app.handle_key_event(key(KeyCode::Esc));
-    assert_eq!(app.current_view, View::Dashboard);
+fn search_input_enter_exits_input_mode() {
+    let mut app = test_app();
+    app.navigate_to(View::Search);
+    app.input_mode = InputMode::Input;
+    app.search_query = "rust".to_owned();
+    app.handle_key_event(key(KeyCode::Enter));
+    assert_eq!(app.input_mode, InputMode::Navigation);
 }
 
 // ---------------------------------------------------------------------------
@@ -273,7 +232,7 @@ fn memory_list_esc_without_query_goes_back_to_dashboard() {
 
 #[test]
 fn memory_detail_scroll_down_and_up() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::MemoryDetail("x".to_owned()));
 
     assert_eq!(app.scroll_offset, 0);
@@ -291,19 +250,23 @@ fn memory_detail_scroll_down_and_up() {
 }
 
 #[test]
-fn memory_detail_esc_returns_to_memory_list() {
-    let mut app = App::new(String::new());
+fn memory_detail_esc_returns_to_previous_view() {
+    let mut app = test_app();
+    // Navigate Dashboard -> Search -> MemoryDetail
+    app.navigate_to(View::Search);
     app.navigate_to(View::MemoryDetail("x".to_owned()));
     app.handle_key_event(key(KeyCode::Esc));
-    assert_eq!(app.current_view, View::MemoryList);
+    // Should go back to Search (the previous view).
+    assert_eq!(app.current_view, View::Search);
 }
 
 #[test]
-fn memory_detail_backspace_returns_to_memory_list() {
-    let mut app = App::new(String::new());
+fn memory_detail_backspace_returns_to_previous_view() {
+    let mut app = test_app();
     app.navigate_to(View::MemoryDetail("x".to_owned()));
     app.handle_key_event(key(KeyCode::Backspace));
-    assert_eq!(app.current_view, View::MemoryList);
+    // Previous view was Dashboard.
+    assert_eq!(app.current_view, View::Dashboard);
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +275,7 @@ fn memory_detail_backspace_returns_to_memory_list() {
 
 #[test]
 fn create_form_tab_cycles_forward_through_fields() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::CreateForm);
     assert_eq!(app.form_field, FormField::Title);
 
@@ -333,7 +296,7 @@ fn create_form_tab_cycles_forward_through_fields() {
 
 #[test]
 fn create_form_shift_backtab_cycles_backward() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::CreateForm);
 
     // BackTab with SHIFT goes backwards.
@@ -343,7 +306,7 @@ fn create_form_shift_backtab_cycles_backward() {
 
 #[test]
 fn create_form_typing_updates_active_field() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::CreateForm);
     assert_eq!(app.form_field, FormField::Title);
 
@@ -356,7 +319,7 @@ fn create_form_typing_updates_active_field() {
 
 #[test]
 fn create_form_backspace_removes_char() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::CreateForm);
     app.form_title = "Helo".to_owned();
     app.handle_key_event(key(KeyCode::Backspace));
@@ -365,7 +328,7 @@ fn create_form_backspace_removes_char() {
 
 #[test]
 fn create_form_esc_returns_to_dashboard() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::CreateForm);
     app.handle_key_event(key(KeyCode::Esc));
     assert_eq!(app.current_view, View::Dashboard);
@@ -373,7 +336,7 @@ fn create_form_esc_returns_to_dashboard() {
 
 #[test]
 fn create_form_ctrl_s_sets_status_message() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::CreateForm);
     app.handle_key_event(ctrl(KeyCode::Char('s')));
     assert!(app.status_message.is_some());
@@ -387,7 +350,7 @@ fn create_form_ctrl_s_sets_status_message() {
 
 #[test]
 fn filtered_memories_empty_query_returns_all() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.memories = vec![
         make_memory("a", "Alpha", 90.0),
         make_memory("b", "Beta", 70.0),
@@ -397,7 +360,7 @@ fn filtered_memories_empty_query_returns_all() {
 
 #[test]
 fn filtered_memories_with_query_filters_by_title() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.memories = vec![
         make_memory("a", "Rust async", 90.0),
         make_memory("b", "Python typing", 70.0),
@@ -410,7 +373,7 @@ fn filtered_memories_with_query_filters_by_title() {
 
 #[test]
 fn filtered_memories_case_insensitive() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.memories = vec![make_memory("a", "RUST TIPS", 90.0)];
     app.search_query = "rust".to_owned();
     assert_eq!(app.filtered_memories().len(), 1);
@@ -418,7 +381,7 @@ fn filtered_memories_case_insensitive() {
 
 #[test]
 fn filtered_memories_matches_content() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.memories = vec![make_memory("a", "Title", 90.0)];
     app.search_query = "content of".to_owned(); // from make_memory helper
     assert_eq!(app.filtered_memories().len(), 1);
@@ -430,11 +393,25 @@ fn filtered_memories_matches_content() {
 
 #[test]
 fn navigate_to_resets_scroll_offset() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.navigate_to(View::MemoryDetail("x".to_owned()));
     app.scroll_offset = 10;
-    app.navigate_to(View::MemoryList);
+    app.navigate_to(View::Search);
     assert_eq!(app.scroll_offset, 0);
+}
+
+// ---------------------------------------------------------------------------
+// Navigate sets previous_view
+// ---------------------------------------------------------------------------
+
+#[test]
+fn navigate_to_sets_previous_view() {
+    let mut app = test_app();
+    assert!(app.previous_view.is_none());
+    app.navigate_to(View::Search);
+    assert_eq!(app.previous_view, Some(View::Dashboard));
+    app.navigate_to(View::Keys);
+    assert_eq!(app.previous_view, Some(View::Search));
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +420,7 @@ fn navigate_to_resets_scroll_offset() {
 
 #[test]
 fn too_small_blocks_navigation() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.terminal_too_small = true;
     // Number keys should be ignored.
     app.handle_key_event(key(KeyCode::Char('2')));
@@ -452,7 +429,7 @@ fn too_small_blocks_navigation() {
 
 #[test]
 fn too_small_q_still_quits() {
-    let mut app = App::new(String::new());
+    let mut app = test_app();
     app.terminal_too_small = true;
     app.handle_key_event(key(KeyCode::Char('q')));
     assert!(app.should_quit);

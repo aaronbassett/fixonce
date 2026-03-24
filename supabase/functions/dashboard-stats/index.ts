@@ -6,7 +6,7 @@
  *
  * Response 200: { stats, heatmap, recent_views, most_accessed }
  */
-import { handleCors, corsHeaders } from "../_shared/cors.ts";
+import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { verifyAuth } from "../_shared/auth.ts";
 
@@ -66,7 +66,10 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // Stats is critical — return error if it fails
   if (statsResult.error) {
-    console.error("dashboard-stats: dashboard_stats RPC error", statsResult.error);
+    console.error(
+      "dashboard-stats: dashboard_stats RPC error",
+      statsResult.error,
+    );
     return errorResponse(
       500,
       "STATS_FAILED",
@@ -81,18 +84,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
   // Non-critical results — silently default to empty arrays on failure
   if (heatmapResult.error) {
-    console.warn("dashboard-stats: dashboard_activity_heatmap RPC error", heatmapResult.error);
+    console.warn(
+      "dashboard-stats: dashboard_activity_heatmap RPC error",
+      heatmapResult.error,
+    );
   }
   if (recentViewsResult.error) {
-    console.warn("dashboard-stats: dashboard_recent_views RPC error", recentViewsResult.error);
+    console.warn(
+      "dashboard-stats: dashboard_recent_views RPC error",
+      recentViewsResult.error,
+    );
   }
   if (mostAccessedResult.error) {
-    console.warn("dashboard-stats: dashboard_most_accessed RPC error", mostAccessedResult.error);
+    console.warn(
+      "dashboard-stats: dashboard_most_accessed RPC error",
+      mostAccessedResult.error,
+    );
   }
 
   const heatmap = Array.isArray(heatmapResult.data) ? heatmapResult.data : [];
-  const recent_views = Array.isArray(recentViewsResult.data) ? recentViewsResult.data : [];
-  const most_accessed = Array.isArray(mostAccessedResult.data) ? mostAccessedResult.data : [];
+  const recent_views = Array.isArray(recentViewsResult.data)
+    ? recentViewsResult.data
+    : [];
+  const most_accessed = Array.isArray(mostAccessedResult.data)
+    ? mostAccessedResult.data
+    : [];
 
   return new Response(
     JSON.stringify({ stats, heatmap, recent_views, most_accessed }),

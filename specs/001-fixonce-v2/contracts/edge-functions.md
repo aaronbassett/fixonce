@@ -173,6 +173,20 @@ Re-encrypt all secrets with a new master key. Admin only.
 
 ## Authentication
 
+### POST /auth-login-start
+
+Start a browser-based GitHub OAuth login. No auth required.
+
+**Request**: `{ "redirect_uri": "string (http://127.0.0.1:<port>/callback)" }`
+**Response** (200): `{ "auth_url": "string (full OAuth authorization URL)" }`
+
+### POST /auth-login-exchange
+
+Exchange an OAuth authorization code for a JWT. No auth required (the code is the proof). The backend performs the Supabase PKCE token exchange using server-side credentials so the CLI never needs the anon key.
+
+**Request**: `{ "code": "string", "redirect_uri": "string" }`
+**Response** (200): `{ "access_token": "JWT string" }`
+
 ### POST /auth-nonce
 
 Generate a nonce for challenge-response auth. No auth required.

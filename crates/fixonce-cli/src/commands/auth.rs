@@ -2,7 +2,7 @@
 use anyhow::{Context, Result};
 use fixonce_core::auth::{challenge::challenge_auth, keypair::load_keypair, token::TokenManager};
 
-/// The keyring label used for the machine's primary signing key.
+/// The label used for the machine's primary signing key.
 const DEFAULT_KEY_LABEL: &str = "machine";
 
 /// Load the machine's Ed25519 signing key, perform a challenge-response

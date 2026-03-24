@@ -14,20 +14,15 @@ use tokio::sync::mpsc::UnboundedSender;
 // ---------------------------------------------------------------------------
 
 /// Generic loading state for async data.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum DataState<T> {
     /// Data is being fetched.
+    #[default]
     Loading,
     /// Data was successfully loaded.
     Loaded(T),
     /// An error occurred while fetching.
     Error(String),
-}
-
-impl<T> Default for DataState<T> {
-    fn default() -> Self {
-        Self::Loading
-    }
 }
 
 impl<T> DataState<T> {

@@ -452,6 +452,7 @@ impl App {
     }
 
     /// Handle key events while in input mode on the Create form.
+    #[allow(clippy::too_many_lines)]
     fn handle_create_form_input_key(&mut self, key: KeyEvent) {
         // Ctrl+S submits.
         if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('s') {
@@ -703,9 +704,9 @@ impl App {
                     });
 
                 if let Some(m) = memory {
-                    self.form_title = m.title.clone();
-                    self.form_content = m.content.clone();
-                    self.form_summary = m.summary.clone();
+                    self.form_title.clone_from(&m.title);
+                    self.form_content.clone_from(&m.content);
+                    self.form_summary.clone_from(&m.summary);
                     self.form_memory_type = m.memory_type.to_string();
                     self.form_source = m.source_type.to_string();
                     self.form_language = m.language.unwrap_or_default();
@@ -849,13 +850,11 @@ impl App {
             ListMode::RecentlyViewed => self
                 .dashboard_data
                 .as_loaded()
-                .map(|d| d.recent_views.len().min(20))
-                .unwrap_or(0),
+                .map_or(0, |d| d.recent_views.len().min(20)),
             ListMode::MostAccessed => self
                 .dashboard_data
                 .as_loaded()
-                .map(|d| d.most_accessed.len().min(20))
-                .unwrap_or(0),
+                .map_or(0, |d| d.most_accessed.len().min(20)),
         }
     }
 
@@ -863,10 +862,9 @@ impl App {
     #[must_use]
     pub fn selected_dashboard_memory_id(&self) -> Option<String> {
         match self.list_mode {
-            ListMode::RecentlyCreated => self
-                .memories
-                .get(self.selected_index)
-                .map(|m| m.id.clone()),
+            ListMode::RecentlyCreated => {
+                self.memories.get(self.selected_index).map(|m| m.id.clone())
+            }
             ListMode::RecentlyViewed => self
                 .dashboard_data
                 .as_loaded()
@@ -929,6 +927,7 @@ impl App {
 ///
 /// Panics only if the system is unable to create a `CrosstermBackend`, which
 /// is an unrecoverable state.
+#[allow(clippy::unused_async)]
 pub async fn run_tui(api_url: &str) -> Result<()> {
     // EC-36: Refuse to launch in non-TTY environments.
     // crossterm's `enable_raw_mode` will fail or behave incorrectly on a

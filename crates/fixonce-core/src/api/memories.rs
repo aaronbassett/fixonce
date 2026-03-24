@@ -69,16 +69,15 @@ pub async fn get_memory(client: &ApiClient, id: &str) -> Result<Memory, ApiError
 
 /// List recent memories (newest first), up to `limit`.
 ///
-/// Queries the PostgREST `memory` table directly, excluding soft-deleted rows.
+/// Queries the `PostgREST` `memory` table directly, excluding soft-deleted rows.
 ///
 /// # Errors
 ///
 /// Returns [`ApiError`] on network failure, authentication problems, or if the
 /// server rejects the request.
 pub async fn list_memories(client: &ApiClient, limit: usize) -> Result<Vec<Memory>, ApiError> {
-    let path = format!(
-        "/rest/v1/memory?deleted_at=is.null&order=created_at.desc&limit={limit}&select=*"
-    );
+    let path =
+        format!("/rest/v1/memory?deleted_at=is.null&order=created_at.desc&limit={limit}&select=*");
     let response = client.get_authenticated(&path)?.send().await?;
 
     if !response.status().is_success() {

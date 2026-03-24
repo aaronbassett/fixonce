@@ -28,10 +28,6 @@ struct Cli {
     /// Override the backend API URL
     #[arg(long, env = "FIXONCE_API_URL", global = true)]
     api_url: Option<String>,
-
-    /// Supabase anon (public) key for auth operations
-    #[arg(long, env = "FIXONCE_ANON_KEY", global = true)]
-    anon_key: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]
@@ -165,8 +161,8 @@ fn transaction_name(cmd: &Commands) -> &'static str {
 /// `SENTRY_DSN` is absent the guard is a no-op and Sentry adds zero overhead.
 fn init_sentry() -> sentry::ClientInitGuard {
     let dsn = std::env::var("SENTRY_DSN").unwrap_or_default();
-    let environment = std::env::var("SENTRY_ENVIRONMENT")
-        .unwrap_or_else(|_| "development".to_owned());
+    let environment =
+        std::env::var("SENTRY_ENVIRONMENT").unwrap_or_else(|_| "development".to_owned());
 
     sentry::init(sentry::ClientOptions {
         dsn: dsn.parse().ok(),
@@ -198,7 +194,6 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let api_url = cli.api_url.as_deref().unwrap_or(DEFAULT_API_URL);
-    let anon_key = cli.anon_key.as_deref().unwrap_or("");
 
     let Some(cmd) = cli.command else {
         // No subcommand — clap will show help via --help; nothing else to do.
@@ -210,7 +205,7 @@ async fn main() -> Result<()> {
     let tx = sentry::start_transaction(tx_ctx);
     sentry::configure_scope(|scope| scope.set_span(Some(tx.clone().into())));
 
-    let result = run_command(cmd, api_url, anon_key).await;
+    let result = run_command(cmd, api_url).await;
 
     tx.set_status(if result.is_ok() {
         sentry::protocol::SpanStatus::Ok
@@ -222,9 +217,9 @@ async fn main() -> Result<()> {
     result
 }
 
-async fn run_command(cmd: Commands, api_url: &str, anon_key: &str) -> Result<()> {
+async fn run_command(cmd: Commands, api_url: &str) -> Result<()> {
     match cmd {
-        Commands::Login => commands::login::run_login(api_url, anon_key).await?,
+        Commands::Login => commands::login::run_login(api_url).await?,
         Commands::Auth => commands::auth::run_auth(api_url).await?,
         Commands::Keys { action } => match action {
             KeysAction::Add => commands::keys::run_keys_add(api_url).await?,

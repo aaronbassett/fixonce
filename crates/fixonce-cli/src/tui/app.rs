@@ -735,8 +735,8 @@ pub async fn run_tui(api_url: &str) -> Result<()> {
     let token = match mgr.load_token() {
         Ok(Some(t)) if !mgr.is_expired(&t) => t,
         _ => {
-            // Task 6 will implement show_unauthenticated_splash.
-            anyhow::bail!("Not authenticated — run `fixonce login` first");
+            views::splash::show_unauthenticated_splash()?;
+            return Ok(());
         }
     };
 

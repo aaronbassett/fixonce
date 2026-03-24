@@ -13,10 +13,9 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use fixonce_core::{
-    api::{search::search_memories, secrets::get_secret, ApiClient},
+    api::{search::search_memories, ApiClient},
     auth::token::TokenManager,
     detect::midnight::detect_midnight_versions,
-    embeddings::VoyageClient,
     memory::types::{SearchMemoryRequest, SearchMemoryResponse},
     pipeline::read::{
         pipeline_runner::{PipelineContext, PipelineRunner},
@@ -194,17 +193,7 @@ pub async fn run_query(api_url: &str, args: QueryArgs) -> Result<()> {
         .context("Failed to create API client")?
         .with_token(&token);
 
-    // 2. Generate embedding for the query text.
-    let voyage_key = get_secret(&client, "VOYAGE_API_KEY")
-        .await
-        .context("Failed to retrieve VoyageAI API key from secrets")?;
-    let voyage = VoyageClient::new().context("Failed to create VoyageAI client")?;
-    let _embedding = voyage
-        .generate_embedding(&voyage_key, &args.text)
-        .await
-        .context("Failed to generate query embedding")?;
-
-    // 3. Execute initial search directly (the pipeline stages record intent
+    // 2. Execute initial search directly (the pipeline stages record intent
     //    but actual API calls need the client injected here).
     let search_req = SearchMemoryRequest {
         query: args.text.clone(),
@@ -244,30 +233,30 @@ pub async fn run_query(api_url: &str, args: QueryArgs) -> Result<()> {
         search_resp.total = search_resp.hits.len();
     }
 
-    // 5. Build and run the read pipeline.
-    let mut ctx = PipelineContext::new(&args.text);
-    ctx.results = search_resp.hits.clone();
+    // 5. Build and run the read pipeline (only with --deep).
+    //    The default pipeline calls Claude for query rewriting and reranking,
+    //    which adds 20-30s of latency. For fast FTS queries, skip it.
+    let (final_hits, degraded) = if args.deep {
+        let mut ctx = PipelineContext::new(&args.text);
+        ctx.results = search_resp.hits.clone();
 
-    let runner = if args.deep {
-        PipelineRunner::deep_pipeline()
+        let runner = PipelineRunner::deep_pipeline();
+        runner.run(&mut ctx).await.context("Read pipeline failed")?;
+
+        let degraded = ctx.degraded;
+        let mut hits: Vec<fixonce_core::memory::types::SearchHit> = if ctx.results.is_empty() {
+            search_resp.hits
+        } else {
+            ctx.results
+        };
+
+        if degraded {
+            sort_by_decay(&mut hits);
+        }
+        (hits, degraded)
     } else {
-        PipelineRunner::default_pipeline()
+        (search_resp.hits, false)
     };
-
-    runner.run(&mut ctx).await.context("Read pipeline failed")?;
-
-    // 6. Determine final result set.
-    let degraded = ctx.degraded;
-    let mut final_hits: Vec<fixonce_core::memory::types::SearchHit> = if ctx.results.is_empty() {
-        search_resp.hits
-    } else {
-        ctx.results
-    };
-
-    // In degraded mode sort by decay_score (EC-29).
-    if degraded {
-        sort_by_decay(&mut final_hits);
-    }
 
     // 7. Format and print.
     match args.format {

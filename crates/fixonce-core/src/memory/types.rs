@@ -26,11 +26,13 @@ pub struct AntiMemory {
 /// A memory record as returned by the `FixOnce` API.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Memory {
+    #[serde(alias = "memory_id")]
     pub id: String,
     pub title: String,
     pub content: String,
     pub summary: String,
     pub memory_type: MemoryType,
+    #[serde(default)]
     pub source_type: SourceType,
     pub language: Option<String>,
     pub compact_pragma: Option<String>,
@@ -42,14 +44,21 @@ pub struct Memory {
     pub repo_url: Option<String>,
     pub task_summary: Option<String>,
     pub session_id: Option<String>,
+    #[serde(default)]
     pub decay_score: f64,
+    #[serde(default)]
     pub reinforcement_score: f64,
     pub last_accessed_at: Option<String>,
+    #[serde(default)]
     pub embedding_status: EmbeddingStatus,
+    #[serde(default)]
     pub pipeline_status: PipelineStatus,
     pub deleted_at: Option<String>,
+    #[serde(default)]
     pub created_at: String,
+    #[serde(default)]
     pub updated_at: String,
+    #[serde(default)]
     pub created_by: String,
     /// Anti-memory payload; present when `memory_type == AntiPattern`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -81,9 +90,10 @@ impl std::fmt::Display for MemoryType {
 }
 
 /// How the memory was originally captured.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum SourceType {
+    #[default]
     Correction,
     Observation,
     PrFeedback,
@@ -105,10 +115,11 @@ impl std::fmt::Display for SourceType {
 }
 
 /// Whether the embedding vector has been computed and stored.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum EmbeddingStatus {
     Complete,
+    #[default]
     Pending,
     Failed,
 }
@@ -125,10 +136,11 @@ impl std::fmt::Display for EmbeddingStatus {
 }
 
 /// Whether all post-creation pipeline steps have finished.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum PipelineStatus {
     Complete,
+    #[default]
     Incomplete,
 }
 
@@ -240,13 +252,16 @@ pub struct SearchMemoryRequest {
 /// A single hit in a similarity search.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchHit {
+    #[serde(flatten)]
     pub memory: Memory,
+    #[serde(alias = "rrf_score", default)]
     pub similarity: f64,
 }
 
 /// Response from the vector-search endpoint.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SearchMemoryResponse {
+    #[serde(alias = "results")]
     pub hits: Vec<SearchHit>,
     pub total: usize,
 }

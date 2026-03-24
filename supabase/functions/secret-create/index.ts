@@ -131,20 +131,40 @@ Deno.serve(async (req: Request): Promise<Response> => {
     );
   }
 
-  // Verify authentication
+  // Verify authentication — allow service_role key for admin bootstrap
   let userId: string;
-  try {
-    ({ userId } = await verifyAuth(req));
-  } catch (err) {
-    const status = (err as Error & { status?: number }).status ?? 401;
-    return errorResponse(
-      status,
-      status === 401 ? "UNAUTHORIZED" : "INTERNAL_ERROR",
-      (err as Error).message,
-      status === 401
-        ? "Provide a valid Bearer token in the Authorization header."
-        : "Contact support if this persists.",
-    );
+  const authHeader = req.headers.get("Authorization");
+  const token = authHeader?.replace("Bearer ", "");
+
+  // Check if the caller is using a service_role JWT (admin bootstrap)
+  let isServiceRole = false;
+  if (token) {
+    try {
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      if (payload.role === "service_role") {
+        isServiceRole = true;
+      }
+    } catch {
+      // Not a valid JWT — fall through to normal auth
+    }
+  }
+
+  if (isServiceRole) {
+    userId = "00000000-0000-0000-0000-000000000000";
+  } else {
+    try {
+      ({ userId } = await verifyAuth(req));
+    } catch (err) {
+      const status = (err as Error & { status?: number }).status ?? 401;
+      return errorResponse(
+        status,
+        status === 401 ? "UNAUTHORIZED" : "INTERNAL_ERROR",
+        (err as Error).message,
+        status === 401
+          ? "Provide a valid Bearer token in the Authorization header."
+          : "Contact support if this persists.",
+      );
+    }
   }
 
   // Parse JSON body

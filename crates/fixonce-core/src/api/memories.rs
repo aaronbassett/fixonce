@@ -67,6 +67,35 @@ pub async fn get_memory(client: &ApiClient, id: &str) -> Result<Memory, ApiError
         .ok_or_else(|| ApiError::UnexpectedResponse(format!("no memory found with id={id}")))
 }
 
+/// List recent memories (newest first), up to `limit`.
+///
+/// Queries the PostgREST `memory` table directly, excluding soft-deleted rows.
+///
+/// # Errors
+///
+/// Returns [`ApiError`] on network failure, authentication problems, or if the
+/// server rejects the request.
+pub async fn list_memories(client: &ApiClient, limit: usize) -> Result<Vec<Memory>, ApiError> {
+    let path = format!(
+        "/rest/v1/memory?deleted_at=is.null&order=created_at.desc&limit={limit}&select=*"
+    );
+    let response = client.get_authenticated(&path)?.send().await?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "(unreadable body)".to_owned());
+        return Err(ApiError::ServerError { status, body });
+    }
+
+    response
+        .json::<Vec<Memory>>()
+        .await
+        .map_err(|e| ApiError::UnexpectedResponse(e.to_string()))
+}
+
 /// Partially update a memory.
 ///
 /// `updates` is a JSON object whose keys are the fields to change.

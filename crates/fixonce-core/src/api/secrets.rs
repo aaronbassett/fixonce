@@ -5,6 +5,7 @@
 /// intentionally provides no caching layer so that secrets are not retained in
 /// memory longer than necessary.
 use serde::Deserialize;
+use tracing::instrument;
 
 use super::{ApiClient, ApiError};
 
@@ -27,8 +28,9 @@ struct SecretResponse {
 /// Returns [`ApiError::Http`] on network failure.
 /// Returns [`ApiError::ServerError`] when the backend rejects the request.
 /// Returns [`ApiError::UnexpectedResponse`] when the payload is malformed.
+#[instrument(skip(client))]
 pub async fn get_secret(client: &ApiClient, name: &str) -> Result<String, ApiError> {
-    let path = format!("/functions/v1/secret-get/{name}");
+    let path = format!("/functions/v1/secret-get?name={name}");
     let response = client.get_authenticated(&path)?.send().await?;
 
     if !response.status().is_success() {

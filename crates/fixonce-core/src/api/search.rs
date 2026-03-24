@@ -7,6 +7,8 @@
 //! this module calls `hybrid_search` for the richer combined mode and
 //! re-exports the shared types.
 
+use tracing::instrument;
+
 use crate::memory::types::{SearchMemoryRequest, SearchMemoryResponse};
 
 use super::{ApiClient, ApiError};
@@ -20,18 +22,24 @@ use super::{ApiClient, ApiError};
 ///
 /// Returns [`ApiError`] on network failure, authentication problems, or if the
 /// server returns a non-success status.
+#[instrument(skip(client), fields(query = %req.query))]
 pub async fn search_memories(
     client: &ApiClient,
     req: &SearchMemoryRequest,
 ) -> Result<SearchMemoryResponse, ApiError> {
-    let path = "/rest/v1/rpc/hybrid_search";
+    let path = "/functions/v1/memory-search";
 
-    let response = client.post_authenticated(path)?.json(req).send().await?;
-
-    // If the hybrid_search function is unavailable, fall back to standard search.
-    if response.status() == reqwest::StatusCode::NOT_FOUND {
-        return crate::api::memories::search_memories(client, req).await;
+    // The edge function expects `query_text`, not `query`.
+    let mut body = serde_json::json!({
+        "query_text": req.query,
+        "search_type": "fts",
+        "limit": req.limit.unwrap_or(20),
+    });
+    if let Some(ref lang) = req.language {
+        body["language"] = serde_json::json!(lang);
     }
+
+    let response = client.post_authenticated(path)?.json(&body).send().await?;
 
     if !response.status().is_success() {
         let status = response.status();

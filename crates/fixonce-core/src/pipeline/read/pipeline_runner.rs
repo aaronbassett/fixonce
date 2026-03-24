@@ -11,6 +11,8 @@
 //! Each stage receives a mutable [`PipelineContext`] and may mutate it.  If
 //! any stage returns an error the pipeline halts immediately.
 
+use tracing::info_span;
+
 use crate::memory::types::SearchHit;
 
 use super::{
@@ -167,6 +169,9 @@ impl PipelineRunner {
     /// Returns [`PipelineError`] on non-recoverable stage failures.
     pub async fn run(&self, ctx: &mut PipelineContext) -> Result<(), PipelineError> {
         for stage in &self.stages {
+            let span = info_span!("pipeline.stage", stage.name = stage.name());
+            let _guard = span.enter();
+
             match stage.execute(ctx).await {
                 Ok(()) => {}
                 Err(

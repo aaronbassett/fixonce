@@ -6,7 +6,7 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame,
 };
 
@@ -128,11 +128,14 @@ fn render_field(
         Style::default().fg(Color::DarkGray)
     };
     let display = format!("{value}_");
-    let widget = Paragraph::new(display).style(style).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .border_style(border_style)
-            .title(format!(" {label} ")),
-    );
+    let widget = Paragraph::new(display)
+        .style(style)
+        .wrap(Wrap { trim: false })
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(border_style)
+                .title(format!(" {label} ")),
+        );
     f.render_widget(widget, area);
 }

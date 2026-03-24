@@ -1,15 +1,13 @@
-/// Ed25519 key generation and secure local storage.
+/// Ed25519 key generation and secure local file storage.
 ///
-/// Private keys are stored exclusively in the OS keyring.  They are **never**
-/// written to disk in plain-text form.
+/// Private keys are stored in `~/.config/fixonce/keys/` with mode 0600,
+/// hex-encoded. They are never written to stdout or logs.
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use keyring::Entry;
 use rand_core::OsRng;
+use std::fs;
+use std::path::PathBuf;
 
 use super::AuthError;
-
-/// The keyring service name used for all fixonce key material.
-const KEYRING_SERVICE: &str = "fixonce";
 
 /// Generate a fresh Ed25519 keypair.
 ///
@@ -22,43 +20,51 @@ pub fn generate_keypair() -> Result<(SigningKey, VerifyingKey), AuthError> {
     Ok((signing_key, verifying_key))
 }
 
-/// Store `signing_key` in the OS keyring under `label`.
+/// Store `signing_key` to a file under `label`.
 ///
-/// The 32-byte raw seed is encoded as hex before being handed to the keyring so
-/// that it remains printable and survives keyring implementations that only
-/// accept UTF-8.
+/// The 32-byte raw seed is encoded as hex.
 ///
 /// # Errors
 ///
-/// Returns [`AuthError::KeyringError`] if the OS keyring rejects the entry.
+/// Returns [`AuthError::KeyringError`] if the file cannot be written.
 pub fn store_keypair(signing_key: &SigningKey, label: &str) -> Result<(), AuthError> {
+    let path = key_path(label)?;
+
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| {
+            AuthError::KeyringError(format!("cannot create keys directory: {e}"))
+        })?;
+    }
+
     let seed_hex = hex::encode(signing_key.to_bytes());
+    fs::write(&path, &seed_hex)
+        .map_err(|e| AuthError::KeyringError(format!("cannot store key: {e}")))?;
 
-    let entry = Entry::new(KEYRING_SERVICE, label)
-        .map_err(|e| AuthError::KeyringError(format!("cannot create keyring entry: {e}")))?;
-
-    entry
-        .set_password(&seed_hex)
-        .map_err(|e| AuthError::KeyringError(format!("cannot store key in keyring: {e}")))?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = fs::Permissions::from_mode(0o600);
+        fs::set_permissions(&path, perms)
+            .map_err(|e| AuthError::KeyringError(format!("cannot set key file permissions: {e}")))?;
+    }
 
     Ok(())
 }
 
-/// Load a previously stored [`SigningKey`] from the OS keyring.
+/// Load a previously stored [`SigningKey`] from the keys directory.
 ///
 /// # Errors
 ///
 /// Returns [`AuthError::KeyringError`] if the key is not found or the stored
 /// data is corrupt.
 pub fn load_keypair(label: &str) -> Result<SigningKey, AuthError> {
-    let entry = Entry::new(KEYRING_SERVICE, label)
-        .map_err(|e| AuthError::KeyringError(format!("cannot create keyring entry: {e}")))?;
+    let path = key_path(label)?;
 
-    let seed_hex = entry
-        .get_password()
-        .map_err(|e| AuthError::KeyringError(format!("key '{label}' not found in keyring: {e}")))?;
+    let seed_hex = fs::read_to_string(&path).map_err(|e| {
+        AuthError::KeyringError(format!("key '{label}' not found: {e}"))
+    })?;
 
-    let bytes = hex::decode(&seed_hex).map_err(|e| {
+    let bytes = hex::decode(seed_hex.trim()).map_err(|e| {
         AuthError::KeyringError(format!("stored key for '{label}' is corrupt: {e}"))
     })?;
 
@@ -71,18 +77,25 @@ pub fn load_keypair(label: &str) -> Result<SigningKey, AuthError> {
     Ok(SigningKey::from_bytes(&array))
 }
 
-/// Remove a stored keypair from the OS keyring.
+/// Remove a stored keypair file.
 ///
 /// # Errors
 ///
 /// Returns [`AuthError::KeyringError`] if deletion fails.
 pub fn delete_keypair(label: &str) -> Result<(), AuthError> {
-    let entry = Entry::new(KEYRING_SERVICE, label)
-        .map_err(|e| AuthError::KeyringError(format!("cannot create keyring entry: {e}")))?;
-
-    entry
-        .delete_credential()
-        .map_err(|e| AuthError::KeyringError(format!("cannot delete key '{label}': {e}")))?;
-
+    let path = key_path(label)?;
+    if path.exists() {
+        fs::remove_file(&path)
+            .map_err(|e| AuthError::KeyringError(format!("cannot delete key '{label}': {e}")))?;
+    }
     Ok(())
+}
+
+/// Resolve the file path for a given key label.
+fn key_path(label: &str) -> Result<PathBuf, AuthError> {
+    let config_dir = dirs::config_dir()
+        .ok_or_else(|| AuthError::KeyringError("cannot determine config directory".to_owned()))?;
+    // Sanitise label to prevent path traversal.
+    let safe_label = label.replace(['/', '\\'], "_").replace("..", "_");
+    Ok(config_dir.join("fixonce").join("keys").join(safe_label))
 }

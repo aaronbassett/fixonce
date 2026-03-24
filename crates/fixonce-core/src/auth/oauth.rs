@@ -5,10 +5,32 @@
 /// authorisation code for a JWT via the Supabase auth edge function.
 use std::collections::HashMap;
 
+use sha2::{Digest, Sha256};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 
 use super::AuthError;
+
+/// Generate a PKCE code verifier (43–128 chars, URL-safe).
+fn generate_code_verifier() -> String {
+    use rand::Rng;
+    let mut rng = rand::rng();
+    let bytes: Vec<u8> = (0..32).map(|_| rng.random::<u8>()).collect();
+    base64_url_encode(&bytes)
+}
+
+/// Compute the S256 code challenge from a code verifier.
+fn compute_code_challenge(verifier: &str) -> String {
+    let digest = Sha256::digest(verifier.as_bytes());
+    base64_url_encode(&digest)
+}
+
+/// Base64-URL encode without padding (per RFC 7636).
+fn base64_url_encode(input: &[u8]) -> String {
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    use base64::Engine;
+    URL_SAFE_NO_PAD.encode(input)
+}
 
 /// Perform the GitHub OAuth flow and return a JWT on success.
 ///
@@ -17,7 +39,7 @@ use super::AuthError;
 /// Returns [`AuthError::OAuthFailed`] when the browser cannot be opened, the
 /// local callback server fails to bind, or the OAuth exchange returns an error.
 /// Returns [`AuthError::HttpError`] when the token-exchange HTTP request fails.
-pub async fn login_with_github(supabase_url: &str) -> Result<String, AuthError> {
+pub async fn login_with_github(supabase_url: &str, anon_key: &str) -> Result<String, AuthError> {
     // Bind to a random high port for the local callback server.
     let listener = TcpListener::bind("127.0.0.1:0")
         .await
@@ -30,9 +52,14 @@ pub async fn login_with_github(supabase_url: &str) -> Result<String, AuthError> 
 
     let redirect_uri = format!("http://127.0.0.1:{port}/callback");
 
-    // Build the GitHub OAuth URL pointing at Supabase's auth provider endpoint.
-    let auth_url =
-        format!("{supabase_url}/auth/v1/authorize?provider=github&redirect_to={redirect_uri}");
+    // PKCE: generate verifier and challenge.
+    let code_verifier = generate_code_verifier();
+    let code_challenge = compute_code_challenge(&code_verifier);
+
+    // Build the GitHub OAuth URL with PKCE parameters.
+    let auth_url = format!(
+        "{supabase_url}/auth/v1/authorize?provider=github&redirect_to={redirect_uri}&flow_type=pkce&code_challenge={code_challenge}&code_challenge_method=S256"
+    );
 
     // Launch the browser.
     open::that(&auth_url)
@@ -70,25 +97,29 @@ pub async fn login_with_github(supabase_url: &str) -> Result<String, AuthError> 
     let _ = stream.write_all(html_response.as_bytes()).await;
 
     // Exchange the authorisation code for a JWT.
-    let jwt = exchange_code_for_jwt(supabase_url, &code, &redirect_uri).await?;
+    let jwt = exchange_code_for_jwt(supabase_url, anon_key, &code, &redirect_uri, &code_verifier).await?;
     Ok(jwt)
 }
 
 /// Exchange an OAuth authorisation `code` for a Supabase JWT.
 async fn exchange_code_for_jwt(
     supabase_url: &str,
+    anon_key: &str,
     code: &str,
     redirect_uri: &str,
+    code_verifier: &str,
 ) -> Result<String, AuthError> {
     let client = reqwest::Client::new();
     let url = format!("{supabase_url}/auth/v1/token?grant_type=pkce");
 
     let mut body = HashMap::new();
     body.insert("auth_code", code);
+    body.insert("code_verifier", code_verifier);
     body.insert("redirect_uri", redirect_uri);
 
     let response = client
         .post(&url)
+        .header("apikey", anon_key)
         .json(&body)
         .send()
         .await?

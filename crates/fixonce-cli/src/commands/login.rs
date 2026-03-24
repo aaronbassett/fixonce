@@ -8,8 +8,8 @@ use fixonce_core::auth::{oauth, token::TokenManager};
 /// # Errors
 ///
 /// Propagates any error from the OAuth flow or keyring storage.
-pub async fn run_login(supabase_url: &str) -> Result<()> {
-    let jwt = oauth::login_with_github(supabase_url)
+pub async fn run_login(supabase_url: &str, anon_key: &str) -> Result<()> {
+    let jwt = oauth::login_with_github(supabase_url, anon_key)
         .await
         .context("GitHub OAuth login failed")?;
 

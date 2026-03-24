@@ -1,17 +1,25 @@
 /// JWT management.
 ///
-/// Tokens are stored in the OS keyring — never written to disk in plain text.
+/// Tokens are stored in `~/.config/fixonce/credentials.json` with mode 0600,
+/// following the same pattern as the GitHub CLI. No system keychain is used,
+/// so there are no OS permission prompts.
+///
 /// Expiry is checked by decoding the JWT payload and inspecting the `exp`
 /// claim, with no crypto verification (the server is the authoritative source
 /// of truth for validity).
 use base64::Engine as _;
-use keyring::Entry;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 
 use super::AuthError;
 
-const KEYRING_SERVICE: &str = "fixonce";
-const KEYRING_TOKEN_LABEL: &str = "jwt";
+/// On-disk credentials file shape.
+#[derive(Debug, Default, Serialize, Deserialize)]
+struct Credentials {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    access_token: Option<String>,
+}
 
 /// Manages the local JWT lifecycle (store, load, expiry, clear).
 pub struct TokenManager;
@@ -29,33 +37,65 @@ impl TokenManager {
         Self
     }
 
-    /// Persist `token` in the OS keyring.
+    /// Persist `token` to the credentials file.
     ///
     /// # Errors
     ///
-    /// Returns [`AuthError::KeyringError`] if the keyring rejects the write.
+    /// Returns [`AuthError::KeyringError`] if the file cannot be written.
     pub fn store_token(&self, token: &str) -> Result<(), AuthError> {
-        let entry = Self::entry()?;
-        entry
-            .set_password(token)
-            .map_err(|e| AuthError::KeyringError(format!("cannot store JWT: {e}")))?;
+        let path = Self::credentials_path()?;
+
+        // Ensure parent directory exists.
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent).map_err(|e| {
+                AuthError::KeyringError(format!("cannot create config directory: {e}"))
+            })?;
+        }
+
+        let creds = Credentials {
+            access_token: Some(token.to_owned()),
+        };
+        let json = serde_json::to_string_pretty(&creds).map_err(|e| {
+            AuthError::KeyringError(format!("cannot serialise credentials: {e}"))
+        })?;
+
+        fs::write(&path, &json)
+            .map_err(|e| AuthError::KeyringError(format!("cannot write credentials: {e}")))?;
+
+        // Set file permissions to 0600 (owner read/write only).
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perms = fs::Permissions::from_mode(0o600);
+            fs::set_permissions(&path, perms).map_err(|e| {
+                AuthError::KeyringError(format!("cannot set file permissions: {e}"))
+            })?;
+        }
+
         Ok(())
     }
 
-    /// Load the stored JWT from the OS keyring.
+    /// Load the stored JWT from the credentials file.
     ///
-    /// Returns `Ok(None)` when no token has been stored yet.
+    /// Returns `Ok(None)` when no credentials file exists or the token field
+    /// is absent.
     ///
     /// # Errors
     ///
-    /// Returns [`AuthError::KeyringError`] for unexpected keyring failures.
+    /// Returns [`AuthError::KeyringError`] for unexpected I/O or parse failures.
     pub fn load_token(&self) -> Result<Option<String>, AuthError> {
-        let entry = Self::entry()?;
-        match entry.get_password() {
-            Ok(token) => Ok(Some(token)),
-            Err(keyring::Error::NoEntry) => Ok(None),
-            Err(e) => Err(AuthError::KeyringError(format!("cannot load JWT: {e}"))),
+        let path = Self::credentials_path()?;
+
+        if !path.exists() {
+            return Ok(None);
         }
+
+        let data = fs::read_to_string(&path)
+            .map_err(|e| AuthError::KeyringError(format!("cannot read credentials: {e}")))?;
+        let creds: Credentials = serde_json::from_str(&data)
+            .map_err(|e| AuthError::KeyringError(format!("cannot parse credentials: {e}")))?;
+
+        Ok(creds.access_token)
     }
 
     /// Return `true` if `token` has expired or its expiry cannot be determined.
@@ -80,26 +120,29 @@ impl TokenManager {
         }
     }
 
-    /// Delete the stored JWT from the OS keyring.
+    /// Delete the stored token from the credentials file.
     ///
-    /// Succeeds silently when no token exists.
+    /// Succeeds silently when no credentials file exists.
     ///
     /// # Errors
     ///
-    /// Returns [`AuthError::KeyringError`] for unexpected keyring failures.
+    /// Returns [`AuthError::KeyringError`] for unexpected I/O failures.
     pub fn clear_token(&self) -> Result<(), AuthError> {
-        let entry = Self::entry()?;
-        match entry.delete_credential() {
-            Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),
-            Err(e) => Err(AuthError::KeyringError(format!("cannot clear JWT: {e}"))),
+        let path = Self::credentials_path()?;
+        if path.exists() {
+            fs::remove_file(&path)
+                .map_err(|e| AuthError::KeyringError(format!("cannot remove credentials: {e}")))?;
         }
+        Ok(())
     }
 
     // --- private helpers ---
 
-    fn entry() -> Result<Entry, AuthError> {
-        Entry::new(KEYRING_SERVICE, KEYRING_TOKEN_LABEL)
-            .map_err(|e| AuthError::KeyringError(format!("cannot access keyring: {e}")))
+    fn credentials_path() -> Result<PathBuf, AuthError> {
+        let config_dir = dirs::config_dir().ok_or_else(|| {
+            AuthError::KeyringError("cannot determine config directory".to_owned())
+        })?;
+        Ok(config_dir.join("fixonce").join("credentials.json"))
     }
 
     /// Decode the middle (payload) segment of a JWT without signature

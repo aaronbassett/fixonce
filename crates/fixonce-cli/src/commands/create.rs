@@ -265,7 +265,7 @@ pub async fn run_create(api_url: &str, args: CreateArgs) -> Result<()> {
         .with_token(&token);
 
     // 3. Generate embedding
-    let voyage_key = get_secret(&client, "VOYAGE_API_KEY")
+    let voyage_key = get_secret(&client, "VOYAGEAI_API_KEY")
         .await
         .context("Failed to retrieve VoyageAI API key from secrets")?;
     let voyage = VoyageClient::new().context("Failed to create VoyageAI client")?;

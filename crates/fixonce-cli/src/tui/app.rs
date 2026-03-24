@@ -4,13 +4,17 @@
 //! rendering lives in the `views` sub-module; this module owns the shared
 //! `App` struct and the `run_tui` entry point.
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use crossterm::{
     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use fixonce_core::memory::types::Memory;
+use fixonce_core::{
+    api::{memories::list_memories, ApiClient},
+    auth::token::TokenManager,
+    memory::types::Memory,
+};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use std::time::Duration;
@@ -366,6 +370,13 @@ impl App {
                 let field = self.get_active_form_field_mut();
                 field.push(c);
             }
+            KeyCode::Enter => {
+                // Insert newline in multiline fields (content, summary).
+                if matches!(self.form_field, FormField::Content | FormField::Summary) {
+                    let field = self.get_active_form_field_mut();
+                    field.push('\n');
+                }
+            }
             KeyCode::Backspace => {
                 let field = self.get_active_form_field_mut();
                 field.pop();
@@ -469,7 +480,7 @@ impl App {
 ///
 /// Panics only if the system is unable to create a `CrosstermBackend`, which
 /// is an unrecoverable state.
-pub fn run_tui(api_url: &str) -> Result<()> {
+pub async fn run_tui(api_url: &str) -> Result<()> {
     // EC-36: Refuse to launch in non-TTY environments.
     // crossterm's `enable_raw_mode` will fail or behave incorrectly on a
     // non-TTY, but we want a clear error message before we attempt it.
@@ -480,6 +491,9 @@ pub fn run_tui(api_url: &str) -> Result<()> {
         );
     }
 
+    // Fetch memories before entering raw mode so errors print normally.
+    let memories = fetch_memories(api_url).await.unwrap_or_default();
+
     // Setup terminal.
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -488,6 +502,7 @@ pub fn run_tui(api_url: &str) -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let mut app = App::new(api_url.to_owned());
+    app.memories = memories;
 
     // Main event loop.
     let result = run_event_loop(&mut terminal, &mut app);
@@ -540,4 +555,20 @@ fn run_event_loop(
         }
     }
     Ok(())
+}
+
+/// Fetch recent memories from the backend for the TUI.
+async fn fetch_memories(api_url: &str) -> Result<Vec<Memory>> {
+    let mgr = TokenManager::new();
+    let token = mgr
+        .load_token()
+        .context("Failed to read token")?
+        .context("Not authenticated — run `fixonce login` first")?;
+
+    let client = ApiClient::new(api_url)
+        .context("Failed to create API client")?
+        .with_token(&token);
+
+    let memories = list_memories(&client, 100).await?;
+    Ok(memories)
 }

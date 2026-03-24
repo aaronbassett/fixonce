@@ -530,14 +530,21 @@ impl App {
             KeyCode::Char(']') => {
                 self.heatmap_mode = self.heatmap_mode.next();
             }
-            KeyCode::Down => {
-                let len = self.filtered_memories().len();
-                self.select_next(len);
+            KeyCode::Char(';') => {
+                self.list_mode = self.list_mode.prev();
+                self.selected_index = 0;
+            }
+            KeyCode::Char('\'') => {
+                self.list_mode = self.list_mode.next();
+                self.selected_index = 0;
             }
             KeyCode::Up => self.select_prev(),
+            KeyCode::Down => {
+                let len = self.dashboard_list_len();
+                self.select_next(len);
+            }
             KeyCode::Enter => {
-                if let Some(mem) = self.filtered_memories().get(self.selected_index).copied() {
-                    let id = mem.id.clone();
+                if let Some(id) = self.selected_dashboard_memory_id() {
                     self.navigate_to(View::MemoryDetail(id));
                 }
             }
@@ -694,6 +701,45 @@ impl App {
                         || m.content.to_lowercase().contains(&q)
                 })
                 .collect()
+        }
+    }
+
+    /// Return the length of the list currently shown in the dashboard memory list.
+    #[must_use]
+    pub fn dashboard_list_len(&self) -> usize {
+        match self.list_mode {
+            ListMode::RecentlyCreated => self.memories.len().min(20),
+            ListMode::RecentlyViewed => self
+                .dashboard_data
+                .as_loaded()
+                .map(|d| d.recent_views.len().min(20))
+                .unwrap_or(0),
+            ListMode::MostAccessed => self
+                .dashboard_data
+                .as_loaded()
+                .map(|d| d.most_accessed.len().min(20))
+                .unwrap_or(0),
+        }
+    }
+
+    /// Return the memory ID at the current `selected_index` for the active list mode.
+    #[must_use]
+    pub fn selected_dashboard_memory_id(&self) -> Option<String> {
+        match self.list_mode {
+            ListMode::RecentlyCreated => self
+                .memories
+                .get(self.selected_index)
+                .map(|m| m.id.clone()),
+            ListMode::RecentlyViewed => self
+                .dashboard_data
+                .as_loaded()
+                .and_then(|d| d.recent_views.get(self.selected_index))
+                .map(|rv| rv.memory_id.clone()),
+            ListMode::MostAccessed => self
+                .dashboard_data
+                .as_loaded()
+                .and_then(|d| d.most_accessed.get(self.selected_index))
+                .map(|ma| ma.memory_id.clone()),
         }
     }
 

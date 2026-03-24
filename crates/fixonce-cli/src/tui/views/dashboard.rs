@@ -17,12 +17,13 @@ use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     Frame,
 };
 use tui_big_text::{BigText, PixelSize};
 
-use crate::tui::app::{App, View};
+use crate::tui::app::{App, ListMode, View};
+use fixonce_core::memory::types::MemoryType;
 
 // Per-character rainbow colours for "FixOnce".
 const LOGO_COLORS: [(u8, u8, u8); 7] = [
@@ -52,7 +53,7 @@ pub fn render(f: &mut Frame, app: &App) {
 
     render_hero_row(f, outer[0]);
     render_activity_row(f, app, outer[1]);
-    render_memory_list(f, outer[2]);
+    render_memory_list(f, app, outer[2]);
     render_status_bar(f, app, outer[3]);
 }
 
@@ -120,14 +121,14 @@ fn render_info_panel(f: &mut Frame, area: Rect) {
 // ---------------------------------------------------------------------------
 
 fn render_activity_row(f: &mut Frame, app: &App, area: Rect) {
-    // Horizontal split: heatmap (50%) | stats placeholder (50%).
+    // Horizontal split: heatmap (50%) | stats (50%).
     let cols = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
         .split(area);
 
     render_heatmap_panel(f, app, cols[0]);
-    render_stats_placeholder(f, cols[1]);
+    render_stats_panel(f, app, cols[1]);
 }
 
 fn render_heatmap_panel(f: &mut Frame, app: &App, area: Rect) {
@@ -159,34 +160,278 @@ fn render_heatmap_panel(f: &mut Frame, app: &App, area: Rect) {
     }
 }
 
-fn render_stats_placeholder(f: &mut Frame, area: Rect) {
-    let placeholder = Paragraph::new("Stats loading...")
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Stats "),
-        )
-        .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::DarkGray));
+fn render_stats_panel(f: &mut Frame, app: &App, area: Rect) {
+    // Vertical split: total memories (flex:1) | bottom row (Length:5).
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([Constraint::Min(0), Constraint::Length(5)])
+        .split(area);
 
-    f.render_widget(placeholder, area);
+    render_total_memories(f, app, rows[0]);
+    render_stats_bottom_row(f, app, rows[1]);
+}
+
+fn render_total_memories(f: &mut Frame, app: &App, area: Rect) {
+    let count = app
+        .dashboard_data
+        .as_loaded()
+        .map(|d| d.stats.total_memories)
+        .unwrap_or(0);
+
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Total Memories ");
+
+    let inner = block.inner(area);
+    f.render_widget(block, area);
+
+    if app.dashboard_data.as_loaded().is_some() {
+        let big = BigText::builder()
+            .pixel_size(PixelSize::HalfHeight)
+            .style(Style::default().fg(Color::Rgb(107, 255, 107)))
+            .lines(vec![Line::from(format!("{count}"))])
+            .build();
+        f.render_widget(big, inner);
+    } else {
+        let loading = Paragraph::new("—")
+            .alignment(Alignment::Center)
+            .style(Style::default().fg(Color::DarkGray));
+        f.render_widget(loading, inner);
+    }
+}
+
+fn render_stats_bottom_row(f: &mut Frame, app: &App, area: Rect) {
+    let cols = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+        .split(area);
+
+    // Searches 24h
+    let searches = app
+        .dashboard_data
+        .as_loaded()
+        .map(|d| d.stats.searches_24h.to_string())
+        .unwrap_or_else(|| "—".to_owned());
+
+    let searches_widget = Paragraph::new(Span::styled(
+        searches,
+        Style::default()
+            .fg(Color::Rgb(107, 196, 255))
+            .add_modifier(Modifier::BOLD),
+    ))
+    .block(Block::default().borders(Borders::ALL).title(" Searches 24h "))
+    .alignment(Alignment::Center);
+
+    f.render_widget(searches_widget, cols[0]);
+
+    // Reports 24h
+    let reports = app
+        .dashboard_data
+        .as_loaded()
+        .map(|d| d.stats.reports_24h.to_string())
+        .unwrap_or_else(|| "—".to_owned());
+
+    let reports_widget = Paragraph::new(Span::styled(
+        reports,
+        Style::default()
+            .fg(Color::Rgb(255, 107, 107))
+            .add_modifier(Modifier::BOLD),
+    ))
+    .block(Block::default().borders(Borders::ALL).title(" Reports 24h "))
+    .alignment(Alignment::Center);
+
+    f.render_widget(reports_widget, cols[1]);
 }
 
 // ---------------------------------------------------------------------------
-// Memory List (placeholder)
+// Memory List
 // ---------------------------------------------------------------------------
 
-fn render_memory_list(f: &mut Frame, area: Rect) {
-    let placeholder = Paragraph::new("Loading memories...")
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(" Memories "),
-        )
-        .alignment(Alignment::Center)
-        .style(Style::default().fg(Color::DarkGray));
+fn render_memory_list(f: &mut Frame, app: &App, area: Rect) {
+    // Vertical split: header (1) | list (Min) | footer (1).
+    let rows = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(1),
+            Constraint::Min(0),
+            Constraint::Length(1),
+        ])
+        .split(area);
 
-    f.render_widget(placeholder, area);
+    // Header line.
+    let header_left = Span::styled(
+        format!(" {} ", app.list_mode.label()),
+        Style::default()
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD),
+    );
+    let header_right = Span::styled(
+        "[;] prev  ['] next ",
+        Style::default().fg(Color::DarkGray),
+    );
+    let header_line = Line::from(vec![header_left, header_right]);
+    let header = Paragraph::new(header_line).alignment(Alignment::Left);
+    f.render_widget(header, rows[0]);
+
+    // Build list items based on current mode.
+    let items: Vec<ListItem> = build_list_items(app);
+    let empty_state = get_empty_state(app);
+
+    let list_widget = if items.is_empty() {
+        let empty = Paragraph::new(Span::styled(
+            empty_state,
+            Style::default().fg(Color::DarkGray),
+        ))
+        .alignment(Alignment::Center);
+        f.render_widget(empty, rows[1]);
+        // Footer hint.
+        let footer = Paragraph::new(Span::styled(
+            " ↑↓ navigate  Enter open  max 20 shown",
+            Style::default().fg(Color::DarkGray),
+        ))
+        .alignment(Alignment::Left);
+        f.render_widget(footer, rows[2]);
+        return;
+    } else {
+        List::new(items)
+            .highlight_style(
+                Style::default()
+                    .bg(Color::Rgb(40, 40, 60))
+                    .add_modifier(Modifier::BOLD),
+            )
+            .highlight_symbol("> ")
+    };
+
+    let mut state = ListState::default();
+    state.select(Some(app.selected_index));
+    f.render_stateful_widget(list_widget, rows[1], &mut state);
+
+    // Footer hint.
+    let footer = Paragraph::new(Span::styled(
+        " ↑↓ navigate  Enter open  max 20 shown",
+        Style::default().fg(Color::DarkGray),
+    ))
+    .alignment(Alignment::Left);
+    f.render_widget(footer, rows[2]);
+}
+
+fn memory_type_color(memory_type_str: &str) -> Color {
+    match memory_type_str {
+        "gotcha" => Color::Yellow,
+        "best_practice" => Color::Rgb(255, 165, 0), // orange
+        "correction" => Color::Cyan,
+        "anti_pattern" => Color::Red,
+        "discovery" => Color::Green,
+        _ => Color::White,
+    }
+}
+
+fn memory_type_color_from_enum(mt: &MemoryType) -> Color {
+    match mt {
+        MemoryType::Gotcha => Color::Yellow,
+        MemoryType::BestPractice => Color::Rgb(255, 165, 0),
+        MemoryType::Correction => Color::Cyan,
+        MemoryType::AntiPattern => Color::Red,
+        MemoryType::Discovery => Color::Green,
+    }
+}
+
+fn truncate_title(title: &str, max_len: usize) -> String {
+    if title.len() <= max_len {
+        title.to_owned()
+    } else {
+        format!("{}…", &title[..max_len.saturating_sub(1)])
+    }
+}
+
+fn build_list_items(app: &App) -> Vec<ListItem<'static>> {
+    match app.list_mode {
+        ListMode::RecentlyCreated => {
+            app.memories
+                .iter()
+                .take(20)
+                .map(|m| {
+                    let type_str = m.memory_type.to_string();
+                    let color = memory_type_color_from_enum(&m.memory_type);
+                    let badge = Span::styled(
+                        format!("[{type_str}]"),
+                        Style::default().fg(color),
+                    );
+                    let title = truncate_title(&m.title, 40);
+                    let decay = format!("  {:.2}", m.decay_score);
+                    let line = Line::from(vec![
+                        badge,
+                        Span::raw(" "),
+                        Span::styled(title, Style::default().fg(Color::White)),
+                        Span::styled(decay, Style::default().fg(Color::DarkGray)),
+                    ]);
+                    ListItem::new(line)
+                })
+                .collect()
+        }
+        ListMode::RecentlyViewed => {
+            let views = app
+                .dashboard_data
+                .as_loaded()
+                .map(|d| d.recent_views.as_slice())
+                .unwrap_or(&[]);
+            views
+                .iter()
+                .take(20)
+                .map(|rv| {
+                    let color = memory_type_color(&rv.memory_type);
+                    let badge = Span::styled(
+                        format!("[{}]", rv.memory_type),
+                        Style::default().fg(color),
+                    );
+                    let title = truncate_title(&rv.title, 35);
+                    let viewed = format!("  last viewed: {}", rv.last_viewed);
+                    let line = Line::from(vec![
+                        badge,
+                        Span::raw(" "),
+                        Span::styled(title, Style::default().fg(Color::White)),
+                        Span::styled(viewed, Style::default().fg(Color::DarkGray)),
+                    ]);
+                    ListItem::new(line)
+                })
+                .collect()
+        }
+        ListMode::MostAccessed => {
+            let accessed = app
+                .dashboard_data
+                .as_loaded()
+                .map(|d| d.most_accessed.as_slice())
+                .unwrap_or(&[]);
+            accessed
+                .iter()
+                .take(20)
+                .map(|ma| {
+                    let color = memory_type_color(&ma.memory_type);
+                    let badge = Span::styled(
+                        format!("[{}]", ma.memory_type),
+                        Style::default().fg(color),
+                    );
+                    let title = truncate_title(&ma.title, 35);
+                    let count = format!("  accessed: {}x", ma.access_count);
+                    let line = Line::from(vec![
+                        badge,
+                        Span::raw(" "),
+                        Span::styled(title, Style::default().fg(Color::White)),
+                        Span::styled(count, Style::default().fg(Color::DarkGray)),
+                    ]);
+                    ListItem::new(line)
+                })
+                .collect()
+        }
+    }
+}
+
+fn get_empty_state(app: &App) -> &'static str {
+    match app.list_mode {
+        ListMode::RecentlyCreated => "No memories yet",
+        ListMode::RecentlyViewed => "No views recorded",
+        ListMode::MostAccessed => "No access data",
+    }
 }
 
 // ---------------------------------------------------------------------------

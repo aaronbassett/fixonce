@@ -8,22 +8,21 @@ use fixonce_core::{
     },
 };
 
-/// The keyring label used for the machine's primary signing key.
+/// The label used for the machine's primary signing key.
 const DEFAULT_KEY_LABEL: &str = "machine";
 
-/// Generate a new Ed25519 keypair, store the private key in the OS keyring,
-/// and register the public key with the backend.
+/// Generate a new Ed25519 keypair, store the private key locally, and register
+/// the public key with the backend.
 ///
 /// # Errors
 ///
-/// Returns an error when key generation fails, the keyring rejects the write,
+/// Returns an error when key generation fails, local storage rejects the write,
 /// or the backend registration call fails.
 pub async fn run_keys_add(base_url: &str) -> Result<()> {
     let (signing_key, verifying_key) =
         generate_keypair().context("Failed to generate Ed25519 keypair")?;
 
-    store_keypair(&signing_key, DEFAULT_KEY_LABEL)
-        .context("Failed to store private key in keyring")?;
+    store_keypair(&signing_key, DEFAULT_KEY_LABEL).context("Failed to store private key")?;
 
     // Load the current JWT so we can authenticate the registration call.
     let mgr = TokenManager::new();

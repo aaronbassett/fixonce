@@ -1,6 +1,5 @@
 /// JWT management.
 ///
-/// Tokens are stored in the OS keyring — never written to disk in plain text.
 /// Expiry is checked by decoding the JWT payload and inspecting the `exp`
 /// claim, with no crypto verification (the server is the authoritative source
 /// of truth for validity).

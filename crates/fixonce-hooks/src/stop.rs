@@ -77,7 +77,7 @@ pub async fn on_stop(api_url: &str) -> Result<String, HookError> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Load the JWT from the OS keyring, mapping missing token to [`HookError::Unauthenticated`].
+/// Load the stored JWT, mapping missing token to [`HookError::Unauthenticated`].
 fn load_token() -> Result<String, HookError> {
     let mgr = TokenManager::new();
     match mgr.load_token().map_err(HookError::Auth)? {

@@ -35,7 +35,7 @@ pub enum HookError {
     #[error("Hook timed out after {0}s")]
     Timeout(u64),
 
-    /// No token was found in the keyring — skip silently (EC-43).
+    /// No token was found — skip silently (EC-43).
     #[error("Not authenticated — skipping hook")]
     Unauthenticated,
 }

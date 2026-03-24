@@ -43,9 +43,6 @@ Set the backend URL as an environment variable (add to your shell profile):
 export FIXONCE_API_URL=https://your-project.supabase.co
 ```
 
-Credentials (JWT and Ed25519 keys) are stored in your OS keyring via the
-`keyring` crate. They are never written to disk in plain text.
-
 ---
 
 ## Quick start

@@ -83,7 +83,7 @@ pub async fn on_session_start(api_url: &str) -> Result<String, HookError> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/// Load the JWT from the OS keyring, mapping missing token to [`HookError::Unauthenticated`].
+/// Load the stored JWT, mapping missing token to [`HookError::Unauthenticated`].
 fn load_token() -> Result<String, HookError> {
     let mgr = TokenManager::new();
     match mgr.load_token().map_err(HookError::Auth)? {
@@ -234,7 +234,7 @@ mod tests {
 
     #[test]
     fn load_token_returns_unauthenticated_when_no_token() {
-        // The test environment has no keyring token; this should map to
+        // The test environment has no stored token; this should map to
         // HookError::Unauthenticated or HookError::Auth.
         let result = load_token();
         assert!(

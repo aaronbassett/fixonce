@@ -7,7 +7,7 @@ use fixonce_core::auth::{oauth, token::TokenManager};
 ///
 /// # Errors
 ///
-/// Propagates any error from the OAuth flow or keyring storage.
+/// Propagates any error from the OAuth flow or credential storage.
 pub async fn run_login(supabase_url: &str) -> Result<()> {
     let jwt = oauth::login_with_github(supabase_url)
         .await

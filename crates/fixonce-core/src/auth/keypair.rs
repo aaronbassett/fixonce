@@ -1,7 +1,4 @@
 /// Ed25519 key generation and secure local storage.
-///
-/// Private keys are stored exclusively in the OS keyring.  They are **never**
-/// written to disk in plain-text form.
 use ed25519_dalek::{SigningKey, VerifyingKey};
 use keyring::Entry;
 use rand_core::OsRng;

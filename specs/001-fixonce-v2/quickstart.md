@@ -46,14 +46,13 @@ supabase functions deploy
 
 ## Environment Configuration
 
-The CLI needs two environment variables for Supabase connection:
+The CLI needs the backend API URL:
 
 ```bash
-export FIXONCE_SUPABASE_URL=https://your-project.supabase.co
-export FIXONCE_SUPABASE_ANON_KEY=your-anon-key
+export FIXONCE_API_URL=https://your-project.supabase.co
 ```
 
-All other secrets (VoyageAI API key, etc.) are stored encrypted on the server and retrieved ephemerally.
+All other secrets (VoyageAI API key, Supabase anon key, etc.) are stored on the server and never exposed to the CLI.
 
 ## Available Commands
 

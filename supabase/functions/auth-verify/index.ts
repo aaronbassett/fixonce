@@ -17,8 +17,8 @@
  * Error codes:
  *   EC-14: Unknown public key → 401 with registration guidance
  */
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import * as jose from "https://deno.land/x/jose@v5.2.0/index.ts";
+import { z } from "zod";
+import * as jose from "jose";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { validateBody, ValidationError } from "../_shared/validate.ts";

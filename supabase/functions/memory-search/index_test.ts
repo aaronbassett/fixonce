@@ -9,8 +9,8 @@
 import {
   assertEquals,
   assertStringIncludes,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+} from "@std/assert";
+import { z } from "zod";
 import { validateBody, ValidationError } from "../_shared/validate.ts";
 
 // ---------------------------------------------------------------------------

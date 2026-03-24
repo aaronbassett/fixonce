@@ -4,7 +4,7 @@
  * Uses the service_role client so it can bypass RLS
  * (activity_log INSERT is restricted to service_role only).
  */
-import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export interface ActivityParams {
   userId?: string;

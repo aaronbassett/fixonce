@@ -5,7 +5,7 @@
  * supabase.auth.getUser() and returns the validated user ID
  * along with an authenticated client for RLS-scoped operations.
  */
-import { createClient, type SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 export interface AuthResult {
   userId: string;

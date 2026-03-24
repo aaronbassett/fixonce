@@ -15,7 +15,7 @@
  *   EC-15: Invalid key format (not a 32-byte Ed25519 key)
  *   EC-16: Unique constraint — duplicate key returns 409
  */
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { z } from "zod";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { verifyAuth } from "../_shared/auth.ts";

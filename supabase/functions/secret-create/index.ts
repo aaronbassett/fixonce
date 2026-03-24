@@ -17,7 +17,7 @@
  * Response 201:
  *   { "name": "string", "created_at": "ISO timestamp" }
  */
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { z } from "zod";
 import { corsHeaders, handleCors } from "../_shared/cors.ts";
 import { errorResponse } from "../_shared/errors.ts";
 import { verifyAuth } from "../_shared/auth.ts";

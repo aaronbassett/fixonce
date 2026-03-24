@@ -13,7 +13,7 @@ import {
   assertEquals,
   assertInstanceOf,
   assertRejects,
-} from "https://deno.land/std@0.224.0/assert/mod.ts";
+} from "@std/assert";
 
 // We import verifyAuth after manipulating the test environment so that
 // the module-level code does not attempt a real network connection.

@@ -5,7 +5,7 @@
  * Throws a structured ValidationError on failure so callers can convert
  * it to a 400 error response.
  */
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { z } from "zod";
 
 export class ValidationError extends Error {
   readonly issues: z.ZodIssue[];

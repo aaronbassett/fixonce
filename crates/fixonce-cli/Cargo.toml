@@ -15,6 +15,7 @@ fixonce-core = { path = "../fixonce-core" }
 fixonce-hooks = { path = "../fixonce-hooks" }
 hex = "0.4.3"
 ratatui = "0.29"
+tui-big-text = "0.7"
 sentry = { version = "0.37", default-features = false, features = ["backtrace", "contexts", "panic", "reqwest", "rustls", "tracing"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.149"

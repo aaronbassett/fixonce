@@ -1,4 +1,5 @@
 pub mod client;
+pub mod dashboard;
 pub mod feedback;
 pub mod memories;
 pub mod search;

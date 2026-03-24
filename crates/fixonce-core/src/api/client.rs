@@ -87,4 +87,24 @@ impl ApiClient {
         }
         Ok(req)
     }
+
+    /// Return a [`RequestBuilder`] for a `PATCH` to `path` (relative to
+    /// `base_url`), with the auth header pre-populated when a token is set.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ApiError::Unauthenticated`] when no token is set.
+    #[instrument(skip(self), fields(http.method = "PATCH"))]
+    pub fn patch_authenticated(&self, path: &str) -> Result<RequestBuilder, ApiError> {
+        let token = self.token.as_deref().ok_or(ApiError::Unauthenticated)?;
+        let url = format!("{}{}", self.base_url, path);
+        let mut req = self
+            .http
+            .patch(url)
+            .header(header::AUTHORIZATION, format!("Bearer {token}"));
+        if let Some(ref key) = self.anon_key {
+            req = req.header("apikey", key);
+        }
+        Ok(req)
+    }
 }

@@ -10,7 +10,7 @@ use ratatui::{
     Frame,
 };
 
-use crate::tui::app::{App, FormField};
+use crate::tui::app::{App, FormField, FormMode};
 
 /// Render the create-memory form.
 pub fn render(f: &mut Frame, app: &App) {
@@ -31,7 +31,11 @@ pub fn render(f: &mut Frame, app: &App) {
         .split(area);
 
     // ---- Heading ----
-    let heading = Paragraph::new(" Create Memory")
+    let title = match &app.form_mode {
+        FormMode::Create => " Create Memory",
+        FormMode::Edit { .. } => " Edit Memory",
+    };
+    let heading = Paragraph::new(title)
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -101,8 +105,7 @@ pub fn render(f: &mut Frame, app: &App) {
     let status_text = if let Some(ref msg) = app.status_message {
         msg.clone()
     } else {
-        " [Tab] Next Field  [Shift+Tab] Prev  [Ctrl+S] Submit Hint  [Esc] Cancel  [q] Quit"
-            .to_owned()
+        " [Tab] Next Field  [Shift+Tab] Prev  [Ctrl+S] Save  [Esc] Cancel  [q] Quit".to_owned()
     };
     let status = Paragraph::new(status_text)
         .style(Style::default().fg(Color::DarkGray))

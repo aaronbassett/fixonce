@@ -449,9 +449,84 @@ impl App {
     fn handle_create_form_input_key(&mut self, key: KeyEvent) {
         // Ctrl+S submits.
         if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('s') {
-            self.status_message = Some(
-                "Ctrl+S detected — submit via `fixonce create` CLI for full pipeline.".to_owned(),
-            );
+            self.status_message = Some("Saving...".to_owned());
+
+            if let Some(ref client) = self.api_client {
+                match self.form_mode.clone() {
+                    FormMode::Create => {
+                        let body = serde_json::json!({
+                            "title": self.form_title,
+                            "content": self.form_content,
+                            "summary": self.form_summary,
+                            "memory_type": self.form_memory_type,
+                            "source_type": self.form_source,
+                            "language": if self.form_language.is_empty() {
+                                serde_json::Value::Null
+                            } else {
+                                serde_json::Value::String(self.form_language.clone())
+                            },
+                        });
+                        let client = client.clone();
+                        let tx = self.tx.clone();
+                        tokio::spawn(async move {
+                            let result = async {
+                                let resp = client
+                                    .post_authenticated("/functions/v1/memory-create")
+                                    .map_err(|e| e.to_string())?
+                                    .json(&body)
+                                    .send()
+                                    .await
+                                    .map_err(|e| e.to_string())?;
+                                if !resp.status().is_success() {
+                                    let body = resp.text().await.unwrap_or_default();
+                                    return Err(body);
+                                }
+                                let data: serde_json::Value =
+                                    resp.json().await.map_err(|e| e.to_string())?;
+                                Ok(data["id"].as_str().unwrap_or("").to_owned())
+                            }
+                            .await;
+                            let msg = match result {
+                                Ok(id) => data::AppMessage::SubmitResult(Ok(id)),
+                                Err(e) => data::AppMessage::SubmitResult(Err(e)),
+                            };
+                            let _ = tx.send(msg);
+                        });
+                    }
+                    FormMode::Edit { memory_id } => {
+                        let body = serde_json::json!({
+                            "title": self.form_title,
+                            "content": self.form_content,
+                            "summary": self.form_summary,
+                        });
+                        let path = format!("/rest/v1/memories?id=eq.{memory_id}");
+                        let client = client.clone();
+                        let tx = self.tx.clone();
+                        tokio::spawn(async move {
+                            let result = async {
+                                let resp = client
+                                    .patch_authenticated(&path)
+                                    .map_err(|e| e.to_string())?
+                                    .json(&body)
+                                    .send()
+                                    .await
+                                    .map_err(|e| e.to_string())?;
+                                if !resp.status().is_success() {
+                                    let body = resp.text().await.unwrap_or_default();
+                                    return Err(body);
+                                }
+                                Ok(memory_id)
+                            }
+                            .await;
+                            let msg = match result {
+                                Ok(id) => data::AppMessage::SubmitResult(Ok(id)),
+                                Err(e) => data::AppMessage::SubmitResult(Err(e)),
+                            };
+                            let _ = tx.send(msg);
+                        });
+                    }
+                }
+            }
             return;
         }
         match key.code {
@@ -592,23 +667,58 @@ impl App {
             KeyCode::Up | KeyCode::Char('k') => self.scroll_up(),
             KeyCode::Down | KeyCode::Char('j') => self.scroll_down(),
             KeyCode::Esc | KeyCode::Backspace => {
-                // Navigate back to previous view or Dashboard.
-                let back = self
-                    .previous_view
-                    .take()
-                    .unwrap_or(View::Dashboard);
-                self.navigate_to(back);
+                let target = self.previous_view.take().unwrap_or(View::Dashboard);
+                self.navigate_to(target);
+            }
+            KeyCode::Char('e') => {
+                // Find the memory ID from the current view.
+                let id = if let View::MemoryDetail(ref id) = self.current_view {
+                    id.clone()
+                } else {
+                    return;
+                };
+
+                // Look up the memory in `self.memories` first, then fall back
+                // to `self.search_results`.
+                let memory = self
+                    .memories
+                    .iter()
+                    .find(|m| m.id == id)
+                    .cloned()
+                    .or_else(|| {
+                        if let DataState::Loaded(ref resp) = self.search_results {
+                            resp.hits
+                                .iter()
+                                .find(|h| h.memory.id == id)
+                                .map(|h| h.memory.clone())
+                        } else {
+                            None
+                        }
+                    });
+
+                if let Some(m) = memory {
+                    self.form_title = m.title.clone();
+                    self.form_content = m.content.clone();
+                    self.form_summary = m.summary.clone();
+                    self.form_memory_type = m.memory_type.to_string();
+                    self.form_source = m.source_type.to_string();
+                    self.form_language = m.language.unwrap_or_default();
+                    self.form_mode = FormMode::Edit { memory_id: id };
+                    self.form_field = FormField::Title;
+                    self.input_mode = InputMode::Input;
+                    self.navigate_to(View::CreateForm);
+                }
             }
             _ => {}
         }
     }
 
     fn handle_create_form_key(&mut self, key: KeyEvent) {
-        // Ctrl+S submits (handled in the event loop, not here).
+        // Switch to input mode on Ctrl+S so the input handler can submit.
         if key.modifiers == KeyModifiers::CONTROL && key.code == KeyCode::Char('s') {
-            self.status_message = Some(
-                "Ctrl+S detected — submit via `fixonce create` CLI for full pipeline.".to_owned(),
-            );
+            self.input_mode = InputMode::Input;
+            // Re-dispatch through the input handler.
+            self.handle_create_form_input_key(key);
             return;
         }
         if key.code == KeyCode::Esc {
@@ -686,11 +796,18 @@ impl App {
             AppMessage::SearchResults(Err(e)) => {
                 self.search_results = DataState::Error(e);
             }
-            AppMessage::SubmitResult(Ok(msg)) => {
-                self.status_message = Some(msg);
+            AppMessage::SubmitResult(Ok(id)) => {
+                self.status_message = Some("Memory saved.".to_owned());
+                self.input_mode = InputMode::Navigation;
+                self.navigate_to(View::MemoryDetail(id.clone()));
+                if let Some(ref client) = self.api_client {
+                    data::fetch_dashboard_async(client.clone(), self.tx.clone());
+                    data::fetch_memories_async(client.clone(), self.tx.clone());
+                }
             }
             AppMessage::SubmitResult(Err(e)) => {
-                self.status_message = Some(format!("Submit failed: {e}"));
+                self.status_message = Some(format!("Error: {e}"));
+                // Stay on form so user can retry.
             }
         }
     }
